@@ -3,6 +3,7 @@ let { ... } = import("./earley");
 let { ... } = import("std/testing");
 
 var digits = "0123456789";
+var letters = "abcdefghijklmnopqrstuvwxyz";
 
 let arith(): Earley {
   return new Earley()
@@ -20,8 +21,37 @@ let arith(): Earley {
       .seq().char(digits);
 }
 
-test("base") {
-  arith().parse("Sum", "1+2");
+let cPlusPlusMini(): Earley {
+  return new Earley()
+    .name("BoolExpr")
+      .seq().rule("BoolExpr").char("<").rule("SingleExpr")
+      .seq().rule("BoolExpr").char(">").rule("SingleExpr")
+      .seq().rule("SingleExpr")
+    .name("SingleExpr")
+      .seq().rule("Ident")
+      .seq().rule("Number")
+    .name("Ident")
+      .seq().rule("Ident").char(letters)
+      .seq().char(letters)
+    .name("Number")
+      .seq().rule("Number").char(digits)
+      .seq().char(digits)
+    .name("Stmt")
+      .seq().rule("ExprStmt").char(";")
+      .seq().rule("DeclareStmt").char(";")
+    .name("ExprStmt")
+      .seq().rule("BoolExpr")
+    .name("DeclareStmt")
+      .seq().rule("Type").rule("Ident")
+    .name("Type")
+      .seq().rule("Ident")
+      .seq().rule("Ident").char("<").rule("Type").char(">");
 }
 
+test("base") {
+  assert(arith().trees("Sum", "1+2").length == 1);
+}
 
+test("mini c++") {
+  assert(cPlusPlusMini().trees("Stmt", "vector<int>x;").length == 2);
+}

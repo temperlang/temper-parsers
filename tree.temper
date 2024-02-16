@@ -1,0 +1,27 @@
+
+export interface Tree {
+  public toString(): String;
+}
+
+export class Token extends Tree {
+  public value: String;
+
+  public toString(): String {
+    return "\"${value}\"";
+  }
+}
+
+export class Node extends Tree {
+  public type: String;
+  public items: List<Tree>;
+
+  public toString(): String {
+    var strs = new ListBuilder<String>();
+    strs.add(type);
+    for (var item = 0; item < items.length; item++) {
+      strs.add(items[item].toString());
+    }
+    var joined = strs.join(" ") { (s);; s };
+    return "(${joined})";
+  }
+}

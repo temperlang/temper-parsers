@@ -1,5 +1,6 @@
 
 let {...} = import("std/regex");
+let {...} = import('./tree.temper');
 
 interface Object {
   public isItem(other: String): Boolean;
@@ -98,6 +99,7 @@ class Item {
   public dot: Int;
   public start: Int;
   public id: Int;
+  public trees: List<Tree>;
 
   public toString(): String {
     var build = new ListBuilder<String>();
@@ -114,8 +116,11 @@ class Item {
     return build.join(" ") { (s);; s };
   }
 
-  public advance(): Item {
-    return new Item(name, ents, dot + 1, start, id);
+  public advance(tree: Tree): Item {
+    var next = new ListBuilder<Tree>();
+    next.addAll(trees);
+    next.add(tree);
+    return new Item(name, ents, dot + 1, start, id, next.toList());
   }
 
   public eq(other: Item): Boolean {
@@ -171,7 +176,7 @@ class StateSets {
             if (ent.isTest()) {
               // scan
               if (ent.check(input[i])) {
-                add(next, item.advance());
+                add(next, item.advance(new Token(input[i])));
               }
             } else {
               // predict
@@ -190,7 +195,7 @@ class StateSets {
               if (old.dot < old.ents.length) {
                 var ent = old.ents[old.dot];
                 if (!ent.isTest() && ent.name() == item.name) {
-                  if (add(sets[i], old.advance())) {
+                  if (add(sets[i], old.advance(new Node(item.name, item.trees)))) {
                     more = true;
                   }
                 }
@@ -209,7 +214,7 @@ class StateSets {
         if (old.dot < old.ents.length) {
           var ent = old.ents[old.dot];
           if (!ent.isTest() && ent.name() == item.name) {
-            add(sets[i], old.advance());
+            add(sets[i], old.advance(new Node(item.name, item.trees)));
           }
         }
       }
@@ -260,13 +265,7 @@ class Rule {
         iparts.add(new ItemPartItem(parts[i].data));
       }
     }
-    return new Item(
-      name,
-      iparts.toList(),
-      0,
-      at,
-      id,
-    );
+    return new Item(name, iparts.toList(), 0, at, id, []);
   }
 }
 
@@ -335,6 +334,18 @@ export class Earley {
     return this;
   }
 
+  public debug(start: String, src: String): Void {
+    var sets = new StateSets(build(), start);
+    sets.string(src.split(""));
+    for (var j = 0; j < sets.sets.length; j++) {
+      console.log("=== ${j.toString()} ===");
+      var last = sets.sets[j];
+      for (var i = 0; i < last.length; i++) {
+        console.log(last[i].toString());
+      }
+    }
+  }
+
   public parse(start: String, src: String): Void {
     var sets = new StateSets(build(), start);
     sets.string(src.split(""));
@@ -342,6 +353,20 @@ export class Earley {
     for (var i = 0; i < last.length; i++) {
       console.log(last[i].toString());
     }
+  }
+
+  public trees(start: String, src: String): List<Tree> {
+    var sets = new StateSets(build(), start);
+    sets.string(src.split(""));
+    var ret = new ListBuilder<Tree>();
+    var last = sets.sets[sets.sets.length-1];
+    for (var i = 0; i < last.length; i++) {
+      var cur = last[i];
+      if (cur.name == start && cur.start == 0 && cur.dot == cur.ents.length) {
+        ret.add(new Node(cur.name, cur.trees));
+      }
+    }
+    return ret.toList();
   }
 
   public build(): Rules {
