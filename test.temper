@@ -1,0 +1,27 @@
+
+let { ... } = import("./earley");
+let { ... } = import("std/testing");
+
+var digits = "0123456789";
+
+let arith(): Earley {
+  return new Earley()
+    .name("Sum")
+      .seq().rule("Sum").char("+").rule("Product")
+      .seq().rule("Product")
+    .name("Product")
+      .seq().rule("Product").char("*").rule("Factor")
+      .seq().rule("Factor")
+    .name("Factor")
+      .seq().char("(").rule("Sum").char(")")
+      .seq().rule("Number")
+    .name("Number")
+      .seq().char(digits).rule("Number")
+      .seq().char(digits);
+}
+
+test("base") {
+  arith().parse("Sum", "1+2");
+}
+
+

@@ -8,4 +8,7 @@ The `name` export defines the library name:
 
 Modules imported here can have imports of their own:
 
-    import("./entry");
+    import("./earley");
+    import("./grammar");
+    import("./test");
+    import("./main");

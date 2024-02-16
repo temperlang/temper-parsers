@@ -1,0 +1,34 @@
+
+let { Earley } = import("./earley");
+
+interface Item {}
+
+class Terminal extends Item {
+
+}
+
+class Select extends Item {
+  public cases: List<Item>;
+}
+
+class Sequence extends Item {
+  public items: List<Item>;
+}
+
+class Repeat extends Item {
+  public min: Int;
+  public max: Int;
+  public join: Item;
+  public body: Item;
+}
+
+export class Grammar {
+  private rules: MapBuilder<String, Item>;
+
+  public constructor(): Void {
+    rules = new MapBuilder<String, Item>();
+  }
+
+  public parse(): Void {
+  }
+}

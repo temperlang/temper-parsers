@@ -1,4 +1,0 @@
-
-let { run } = import("./parse");
-
-run("1+(2*3+4)");
