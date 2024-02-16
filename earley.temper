@@ -2,44 +2,6 @@
 let {...} = import("std/regex");
 let {...} = import('./tree.temper');
 
-interface Object {
-  public isItem(other: String): Boolean;
-  public isString(other: String): Boolean;
-  public toString(): String;
-}
-
-class ObjectString extends Object {
-  public data: String;
-
-  public isItem(other: String): Boolean {
-    return false;
-  }
-
-  public isString(other: String): Boolean {
-    return data == other;
-  }
-
-  public toString(): String {
-    return "\"${data}\"";
-  }
-}
-
-class ObjectItem extends Object {
-  public name: String;
-
-  public isItem(other: String): Boolean {
-    return name == other;
-  }
-
-  public isString(other: String): Boolean {
-    return false;
-  }
-
-  public toString(): String {
-    return "$${name}";
-  }
-}
-
 interface ItemPart {
   public isTest(): Boolean;
   public name(): String;
@@ -75,7 +37,7 @@ class ItemPartSet extends ItemPart {
   }
 
   public name(): String {
-    return "";
+    return "FAKE ${vals.join(" | ") { (s);; s }}";
   }
 
   public check(s: String): Boolean {
@@ -99,7 +61,8 @@ class Item {
   public dot: Int;
   public start: Int;
   public id: Int;
-  public trees: List<Tree>;
+  private trees: List<Tree>;
+  private cons: fn(List<Tree>): List<Tree>;
 
   public toString(): String {
     var build = new ListBuilder<String>();
@@ -116,15 +79,19 @@ class Item {
     return build.join(" ") { (s);; s };
   }
 
-  public advance(tree: Tree): Item {
+  public advance(got: List<Tree>): Item {
     var next = new ListBuilder<Tree>();
     next.addAll(trees);
-    next.add(tree);
-    return new Item(name, ents, dot + 1, start, id, next.toList());
+    next.addAll(got);
+    return new Item(name, ents, dot + 1, start, id, next.toList(), cons);
   }
 
   public eq(other: Item): Boolean {
     return id == other.id && start == other.start && dot == other.dot; 
+  }
+  
+  public toTree(): List<Tree> {
+    return cons(trees);
   }
 }
 
@@ -132,11 +99,12 @@ class StateSets {
   public rules: Rules;
   public sets: ListBuilder<ListBuilder<Item>>;
 
-  public constructor(ru: Rules, start: String): Void {
+  public constructor(ru: Rules): Void {
     rules = ru;
     sets = new ListBuilder<ListBuilder<Item>>();
     sets.add(new ListBuilder<Item>());
-    var found = rules.find(start);
+    // var found = rules.find(start);
+    var found = rules.rules;
     for (var i = 0; i < found.length; i++) {
       sets[0].add(found[i].toItem(0));
     }
@@ -163,62 +131,74 @@ class StateSets {
     return true;
   }
 
-  public string(input: List<String>): Void {
+  private process1(i: Int, next: ListBuilder<Item>, input: String): Void {
+    var last = sets[i];
+    var more = true;
+    for (var j = 0; j < last.length; j++) {
+      var item = last[j];
+      if (item.dot < item.ents.length) {
+        var ent = item.ents[item.dot];
+        if (ent.isTest()) {
+          // scan
+          if (ent.check(input)) {
+            add(next, item.advance([new Token(input)]));
+          }
+        } else {
+          // predict
+          var found = rules.find(ent.name());
+          // console.log("item.name = ${item.name}; ent.name = ${ent.name()};");
+          for (var k = 0; k < found.length; k++) {
+            var itemFound = found[k].toItem(i);
+            if (add(last, itemFound)) {
+              more = true;
+            }
+            if (rules.nullable[itemFound.id]) {
+              var magic = item.advance([]);
+              if (add(last, magic)) {
+                more = true;
+              }
+            }
+          }
+        }
+      } else {
+        // complete
+        for (var k = 0; k < sets[item.start].length; k++) {
+          var old = sets[item.start][k];
+          if (old.dot < old.ents.length) {
+            var ent = old.ents[old.dot];
+            if (!ent.isTest() && ent.name() == item.name) {
+              if (add(last, old.advance(item.toTree()))) {
+                // console.log("${old.name} ${item.start.toString()} => ${i.toString()}");
+                more = true;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  private process(input: List<String>): Void {
     for (var i = 0; i < input.length; i++) {
       var next = new ListBuilder<Item>();
-      var more = true;
-      while (more) {
-        more = false;
-        for (var j = 0; j < sets[i].length; j++) {
-          var item = sets[i][j];
-          if (item.dot < item.ents.length) {
-            var ent = item.ents[item.dot];
-            if (ent.isTest()) {
-              // scan
-              if (ent.check(input[i])) {
-                add(next, item.advance(new Token(input[i])));
-              }
-            } else {
-              // predict
-              var found = rules.find(ent.name());
-              for (var k = 0; k < found.length; k++) {
-                var next = found[k].toItem(i);
-                if (add(sets[i], next)) {
-                  more = true;
-                }
-              }
-            }
-          } else {
-            // complete
-            for (var k = 0; k < sets[item.start].length; k++) {
-              var old = sets[item.start][k];
-              if (old.dot < old.ents.length) {
-                var ent = old.ents[old.dot];
-                if (!ent.isTest() && ent.name() == item.name) {
-                  if (add(sets[i], old.advance(new Node(item.name, item.trees)))) {
-                    more = true;
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
+      process1(sets.length-1, next, input[i]);
       sets.add(next);
     }
+    var next = new ListBuilder<Item>();
     var i = sets.length-1;
-    for (var j = 0; j < sets[i].length; j++) {
-      var item = sets[i][j];
-      for (var k = 0; k < sets[item.start].length; k++) {
-        var old = sets[item.start][k];
-        if (old.dot < old.ents.length) {
-          var ent = old.ents[old.dot];
-          if (!ent.isTest() && ent.name() == item.name) {
-            add(sets[i], old.advance(new Node(item.name, item.trees)));
-          }
-        }
-      }
-    }
+    process1(i, next, "");
+  }
+
+  public chars(input: List<String>): Void {
+    var p = new ListBuilder<String>();
+    p.addAll(input);
+    // p.add("\0");
+    process(p.toList());
+    // sets.removeLast();
+  }
+
+  public string(input: String): Void {
+    chars(input.split(""));
   }
 }
 
@@ -239,12 +219,7 @@ class Rule {
   public name: String;
   public parts: List<RulePart>;
   public id: Int;
-
-  public constructor(s: String, ls: List<RulePart>, i: Int): Void {
-    name = s;
-    parts = ls;
-    id = i;
-  }
+  public cons: fn(List<Tree>): List<Tree>;
 
   public toString(): String {
     var build = new ListBuilder<String>();
@@ -265,18 +240,52 @@ class Rule {
         iparts.add(new ItemPartItem(parts[i].data));
       }
     }
-    return new Item(name, iparts.toList(), 0, at, id, []);
+    return new Item(name, iparts.toList(), 0, at, id, [], cons);
   }
 }
 
 class Rules {
-  public rules: ListBuilder<Rule>; 
+  public nullable: ListBuilder<Boolean>;
+  public rules: ListBuilder<Rule>;
+  private var built: Boolean;
 
   public constructor(): Void {
+    nullable = new ListBuilder<String>();
     rules = new ListBuilder<Rule>();
+    built = true;
+  }
+
+  public build(): Void {
+    nullable = new ListBuilder<Boolean>();
+    for (var j = 0; j < rules.length; j++) {
+      nullable.add(rules[j].parts.length == 0);
+    }
+    var more = true;
+    while (more) {
+      more = false;
+      for (var j = 0; j < rules.length; j++) {
+        var rule = rules[j];
+        for (var i = 0; i < rule.parts.length; i++) {
+          var part = rule.parts[i];
+          if (!part.isString) {
+            var found = find(part.data);
+            for (var k = 0; k < found.length; k++) {
+              if (found[k].parts.length == 0 || nullable[found[k].id]) {
+                if (!nullable[rule.id]) {
+                  nullable[rule.id] = true;
+                  more = true;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    built = true;
   }
 
   public add(rule: Rule): Void {
+    built = false;
     rules.add(rule);
   }
 
@@ -298,13 +307,16 @@ class Rules {
 }
 
 export class Earley {
-  public rname: String;
-  public parts: ListBuilder<ListBuilder<RulePart>>;
-  public rules: Rules;
-  public nid: Int;
+  private rname: String;
+  private parts: ListBuilder<ListBuilder<RulePart>>;
+  private consBy: ListBuilder<fn(List<Tree>): List<Tree>>;
+  private rules: Rules;
+  private nid: Int;
+  private init: String; 
 
   public constructor(): Void {
     rname = "";
+    consBy = new ListBuilder<fn(List<Tree>): List<Tree>>();
     parts = new ListBuilder<ListBuilder<RulePart>>();
     rules = new Rules();
     nid = 0;
@@ -312,15 +324,70 @@ export class Earley {
 
   public name(s: String): Earley {
     for (var i = 0; i < parts.length; i++) {
-      rules.add(new Rule(rname, parts[i].toList(), nid++));
+      rules.add(new Rule(rname, parts[i].toList(), nid++, consBy[i]));
     }
     rname = s;
+    consBy = new ListBuilder<fn(List<Tree>): List<Tree>>();
     parts = new ListBuilder<ListBuilder<RulePart>>();
     return this;
   }
 
   public seq(): Earley {
+    var rnameNow = rname;
     parts.add(new ListBuilder<RulePart>());
+    consBy.add(fn(items: List<Tree>): List<Tree> {
+      return [new Node(rnameNow, items)];
+    });
+    return this;
+  }
+
+  public cons(cons: fn(List<Tree>): List<Tree>): Earley {
+    consBy[consBy.length-1] = cons;
+    return this;
+  }
+
+  public ignore(): Earley {
+    consBy[consBy.length-1] = fn(items: List<Tree>): List<Tree> {
+      return [];
+    };
+    return this;
+  }
+
+  public expand(): Earley {
+    consBy[consBy.length-1] = fn(items: List<Tree>): List<Tree> {
+      return items;
+    };
+    return this;
+  }
+
+  public token(): Earley {
+    let walk(trees: List<Tree>): String {
+      return trees.join("", fn(t: Tree): String {
+        match (t) {
+          is Token -> return t.as<Token>().value;
+          is Node -> return walk(t.as<Node>().items);
+          else -> bubble();
+        }
+      })
+    }
+    consBy[consBy.length-1] = fn(items: List<Tree>): List<Tree> {
+      return [new Token(walk(items))];
+    }
+    return this;
+  }
+
+  public alias(aliasName: String): Earley {
+    consBy[consBy.length-1] = fn(items: List<Tree>): List<Tree> {
+      return [new Node(aliasName, items)];
+    };
+    return this;
+  }
+
+  public str(seq: String): Earley {
+    var split = seq.split("");
+    for (var i = 0; i < split.length; i++) {
+      parts[parts.length-1].add(new RulePart(true, split[i]));
+    }
     return this;
   }
 
@@ -334,11 +401,13 @@ export class Earley {
     return this;
   }
 
-  public debug(start: String, src: String): Void {
-    var sets = new StateSets(build(), start);
-    sets.string(src.split(""));
+  public debug(src: String): Void {
+    var sets = new StateSets(build());
+    var split = src.split("");
+    sets.chars(split);
     for (var j = 0; j < sets.sets.length; j++) {
-      console.log("=== ${j.toString()} ===");
+      var c = split[j] orelse "<none>";
+      console.log("=== ${j.toString()} (char: ${c}) ===");
       var last = sets.sets[j];
       for (var i = 0; i < last.length; i++) {
         console.log(last[i].toString());
@@ -346,9 +415,9 @@ export class Earley {
     }
   }
 
-  public parse(start: String, src: String): Void {
-    var sets = new StateSets(build(), start);
-    sets.string(src.split(""));
+  public parse(src: String): Void {
+    var sets = new StateSets(build());
+    sets.string(src);
     var last = sets.sets[sets.sets.length-1];
     for (var i = 0; i < last.length; i++) {
       console.log(last[i].toString());
@@ -356,14 +425,58 @@ export class Earley {
   }
 
   public trees(start: String, src: String): List<Tree> {
-    var sets = new StateSets(build(), start);
-    sets.string(src.split(""));
+    var sets = new StateSets(build());
+    sets.string(src);
     var ret = new ListBuilder<Tree>();
     var last = sets.sets[sets.sets.length-1];
     for (var i = 0; i < last.length; i++) {
       var cur = last[i];
       if (cur.name == start && cur.start == 0 && cur.dot == cur.ents.length) {
-        ret.add(new Node(cur.name, cur.trees));
+        ret.addAll(cur.toTree());
+      }
+    }
+    return ret.toList();
+  }
+
+  public first(start: String, src: String): Tree | Bubble {
+    var sets = new StateSets(build());
+    sets.string(src);
+    var ret = new ListBuilder<Tree>();
+    var last = sets.sets[sets.sets.length-1];
+    for (var i = 0; i < last.length; i++) {
+      var cur = last[i];
+      if (cur.name == start && cur.start == 0 && cur.dot == cur.ents.length) {
+        ret.addAll(cur.toTree());
+      }
+    }
+    return ret[0];
+  }
+
+  public all(start: String, src: String): List<Tree> {
+    var sets = new StateSets(build());
+    sets.string(src);
+    var ret = new ListBuilder<Tree>();
+    for (var i = 0; i < sets.sets.length; i++) {
+      var last = sets.sets[i];
+      for (var j = 0; j < last.length; j++) {
+        var cur = last[j];
+        if (cur.name == start && cur.dot == cur.ents.length) {
+          ret.addAll(cur.toTree());
+        }
+      }
+    }
+    return ret.toList();
+  }
+
+  public allTrees(src: String): List<Tree> {
+    var sets = new StateSets(build());
+    sets.string(src);
+    var ret = new ListBuilder<Tree>();
+    var last = sets.sets[sets.sets.length-1];
+    for (var i = 0; i < last.length; i++) {
+      var cur = last[i];
+      if (cur.start == 0 && cur.dot == cur.ents.length) {
+        ret.addAll(cur.toTree());
       }
     }
     return ret.toList();
@@ -371,6 +484,7 @@ export class Earley {
 
   public build(): Rules {
     name("");
+    rules.build();
     return rules;
   }
 

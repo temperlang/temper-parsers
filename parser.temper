@@ -1,0 +1,23 @@
+
+
+let { Earley } = import("./earley");
+let { larkish, toEarley } = import("./grammar");
+let { Tree } = import("./tree");
+
+var larky = larkish();
+
+export class Parser {
+  private earley: Earley;
+
+  public constructor(grammar: String): Void {
+    earley = toEarley(larky.first("Grammar", grammar));
+  }
+
+  public parse(str: String): Tree | Bubble {
+    return earley.first("__start__", str);
+  }
+
+  public findAll(str: String): List<Tree> {
+    return earley.all("__start__", str);
+  }
+}

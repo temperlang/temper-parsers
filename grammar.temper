@@ -1,34 +1,263 @@
 
 let { Earley } = import("./earley");
+let { Tree, Node, Token } = import("./tree");
 
-interface Item {}
+var digits = "0123456789";
+var lowercase = "abcdefghijklmnopqrstuvwxyz";
+var uppercase = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+var alpha = "${lowercase}${uppercase}";
+var alnum = "${alpha}${digits}";
+var word0 = "${alpha}_";
+var word1 = "${word0}${digits}";
+let stringBody = " !#$%&()*+,-./${digits}:;<=>?@${uppercase}[]^_`${lowercase}{|}~";
+let ascii = "${stringBody}\\\"";
 
-class Terminal extends Item {
-
+export let larkish(): Earley {
+  return new Earley()
+    .name("Grammar")
+      .seq().rule("Ignore").rule("Defines").rule("Ignore")
+    .name("Defines")
+      .seq().rule("Defines").rule("Ignore").rule("Define").expand()
+      .seq().rule("Define").expand()
+    .name("Define")
+      .seq().rule("Name").rule("Ignore").rule("CharColon").rule("Ignore").rule("Pattern")
+    .name("Pattern")
+      .seq().rule("Select").expand()
+    .name("Select")
+      .seq().rule("SelectBody")
+    .name("SelectBody")
+      .seq().rule("SelectBody").rule("Ignore").rule("CharPipe").rule("Ignore").rule("Sequence").expand()
+      .seq().rule("Sequence").expand()
+    .name("Sequence")
+      .seq().rule("SequenceBody")
+    .name("SequenceBody")
+      .seq().rule("SequenceBody").rule("Ignore").rule("Postfix").expand()
+      .seq().rule("Postfix").expand()
+    .name("Postfix")
+      .seq().rule("Single").rule("Ignore").rule("CharPlus").alias("OneOrMore")
+      .seq().rule("Single").rule("Ignore").rule("CharTimes").alias("ZeroOrMore")
+      .seq().rule("Single").rule("Ignore").rule("CharQuestion").alias("ZeroOrOne")
+      .seq().rule("Postfix").rule("Ignore").rule("ExpandSymbol").alias("ToExpand")
+      .seq().rule("Postfix").rule("Ignore").rule("CharBang").alias("ToIgnore")
+      .seq().rule("Single").expand()
+    .name("Single")
+      .seq().rule("CharOpenParen").rule("Ignore").rule("Pattern").rule("Ignore").rule("CharCloseParen").expand()
+      .seq().rule("Name").alias("Rule")
+      .seq().rule("CharQuotes").rule("StringBody").rule("CharQuotes").alias("String")
+      .seq().rule("CharHashtag").char(ascii).rule("RangeSymbol").rule("CharHashtag").char(ascii).alias("CharRange")
+      .seq().rule("CharOpenSquare").rule("StringBody").rule("CharCloseSquare").alias("CharSet")
+      .seq().rule("CharHashtag").char(ascii).alias("CharSet")
+    .name("StringBody")
+      .seq().rule("StringData").token()
+    .name("StringData")
+      .seq().rule("StringData").rule("StringChar").expand()
+      .seq().char(stringBody).expand()
+    .name("StringChar")
+      .seq().char(stringBody)
+      .seq().rule("CharBackslach").rule("StringEscape").expand()
+    .name("StringEscape")
+      .seq().char("\"\'rtn")
+      .seq().char("x").char(digits).char(digits)
+    .name("Name")
+      .seq().rule("Letters").token()
+      .seq().rule("Name").char(".").rule("Letters").token()
+    .name("Letters")
+      .seq().rule("Letters").char(alnum).expand()
+      .seq().char(alpha).expand()
+    .name("Ignore")
+      .seq().rule("IgnoreChars").ignore()
+      .seq().ignore()
+    .name("IgnoreChars")
+      .seq().rule("IgnoreChars").char(" \t\r\n")
+      .seq().char(" \t\r\n")
+    .name("RangeSymbol").seq().str("..").ignore()
+    .name("ExpandSymbol").seq().char("").ignore()
+    .name("CharQuotes").seq().char("\"").ignore()
+    .name("CharColon").seq().char(":").ignore()
+    .name("CharPipe").seq().char("|").ignore()
+    .name("CharPlus").seq().char("+").ignore()
+    .name("CharTimes").seq().char("*").ignore()
+    .name("CharQuestion").seq().char("?").ignore()
+    .name("CharBang").seq().char("!").ignore()
+    .name("CharOpenParen").seq().char("(").ignore()
+    .name("CharCloseParen").seq().char(")").ignore()
+    .name("CharOpenSquare").seq().char("[").ignore()
+    .name("CharCloseSquare").seq().char("]").ignore()
+    .name("CharBackslash").seq().char(")").ignore()
+    .name("CharHashtag").seq().char("#").ignore();
 }
 
-class Select extends Item {
-  public cases: List<Item>;
-}
+export let toEarley(whole: Tree): Earley {
+  var earley = new Earley();
 
-class Sequence extends Item {
-  public items: List<Item>;
-}
-
-class Repeat extends Item {
-  public min: Int;
-  public max: Int;
-  public join: Item;
-  public body: Item;
-}
-
-export class Grammar {
-  private rules: MapBuilder<String, Item>;
-
-  public constructor(): Void {
-    rules = new MapBuilder<String, Item>();
+  var base = "";
+  var term: Boolean = false;
+  var n = 0;
+  let genName(): String {
+    n += 1;
+    return "${base}#${n.toString()}";
   }
 
-  public parse(): Void {
+  let translateNode(node: Node, cb: fn(String): Void): Void {
+    if (node.type == "Grammar") {
+      node.forEach { (tree);;
+        translate(tree) { (name);; };
+      };
+      cb("");
+      return;
+    } 
+    if (node.type == "Define") {
+      base = node.items[0].as<Token>().value;
+      term = base.codePoints.read() <= "Z".codePoints.read();
+      translate(node.items[1]) { (name);;
+        earley.name(base).seq().rule(name);
+        if (term) {
+          earley.token();
+        }
+        cb("");
+      };
+      return;
+    } 
+    if (node.type == "Select") {
+      var name = genName();
+      var names = new ListBuilder<String>();
+      node.forEach { (tree);;
+        translate(tree) { (item);;
+          names.add(item);
+          if (names.length == node.items.length) {
+            earley.name(name);
+            for (var i = 0; i < names.length; i++) {
+              earley.seq().rule(names[i]).expand();
+            }
+            cb(name);
+          }
+        };
+      };
+      return;
+    } 
+    if (node.type == "Sequence") {
+      var name = genName();
+      var names = new ListBuilder<String>();
+      node.forEach { (tree);;
+        translate(tree) { (item);;
+          names.add(item);
+          if (names.length == node.items.length) {
+            earley.name(name).seq();
+            for (var i = 0; i < names.length; i++) {
+              if (i != 0) {
+                if (!term) {
+                  earley.rule("__ignores__");
+                }
+              }
+              earley.rule(names[i]);
+            }
+            earley.expand();
+            cb(name);
+          }
+        };
+      };
+      return;
+    } 
+    if (node.type == "OneOrMore") {
+      var name = genName();
+      translate(node.items[0]) { (item);;
+        if (!term) {
+          earley.name(name).seq().rule(name).rule("__ignores__").rule(item).expand();
+        } else {
+          earley.name(name).seq().rule(name).rule(item).expand();
+        }
+        earley.name(name).seq().rule(item).expand();
+        cb(name);
+      };
+      return;
+    } 
+    if (node.type == "ZeroOrMore") {
+      var name = genName();
+      translate(node.items[0]) { (item);;
+        if (!term) {
+          earley.name(name).seq().rule(name).rule("__ignores__").rule(item).expand();
+        } else {
+          earley.name(name).seq().rule(name).rule(item).expand();
+        }
+        earley.name(name).seq().expand();
+        cb(name);
+      };
+      return;
+    } 
+    if (node.type == "ToIgnore") {
+      var name = genName();
+      translate(node.items[0]) { (item);;
+        earley.name(name).seq().rule(item).ignore();
+        cb(name);
+      };
+      return;
+    }
+    if (node.type == "ToExpand") {
+      var name = genName();
+      translate(node.items[0]) { (item);;
+        earley.name(name).seq().rule(item).expand();
+        cb(name);
+      };
+      return;
+    }
+    if (node.type == "ZeroOrOne") {
+      var name = genName();
+      translate(node.items[0]) { (item);;
+        earley.name(name).seq().rule(item).expand();
+        earley.name(name).seq().expand();
+        cb(name);
+      };
+      return;
+    } 
+    if (node.type == "Rule") {
+      cb(node.items[0].as<Token>().value);
+      return;
+    } 
+    if (node.type == "CharSet") {
+      var name = genName();
+      earley.name(name).seq().char(node.items[0].as<Token>().value).token();
+      cb(name);
+      return;
+    }
+    if (node.type == "String") {
+      var name = genName();
+      earley.name(name).seq().str(node.items[0].as<Token>().value).token();
+      cb(name);
+      return;
+    }
+    console.log("unhandled: /${node.type}/ -> ${node.toString()}");
+    bubble();
   }
+
+  let translate(tree: Tree, cb: fn(String): Void): Void {
+    match (tree) {
+      is Node -> translateNode(tree.as<Node>(), cb);
+      else -> do {
+        console.log("unhandled: ${tree.toString()}");
+      };
+    }
+  }
+
+  translate(whole) { (name);; };
+
+  earley.name("__start__").seq().rule("__ignores__").rule("start").rule("__ignores__").expand();
+  earley.name("__ignores__").seq().rule("__ignores__").rule("ignore").ignore();
+  earley.name("__ignores__").seq().rule("ignore").ignore();
+  earley.name("ignore").seq().ignore();
+
+  earley.name("DIGIT").seq().char(digits).token();
+  earley.name("DIGITS").seq().char(digits).rule("DIGITS").token();
+  earley.name("DIGITS").seq().char(digits).token();
+  earley.name("LOWERCASE").seq().char(lowercase).token();
+  earley.name("UPPERCASE").seq().char(uppercase).token();
+  earley.name("LETTER").seq().char(alpha).token();
+  earley.name("LETTERS").seq().char(alpha).rule("LETTERS").token();
+  earley.name("LETTERS").seq().char(alpha).token();
+  earley.name("ASCII").seq().char(ascii).token();
+  earley.name("CNAME").seq().rule("CNAME").char(word1).token();
+  earley.name("CNAME").seq().char(word0).token();
+  earley.name("WHITESPACE").seq().char(" \t\r\n").token();
+
+  return earley;
 }
+

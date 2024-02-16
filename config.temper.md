@@ -1,14 +1,4 @@
-# Temper Parser
+# Temper Earley Parser
 
-This file is used for library configuration.
-
-The `name` export defines the library name:
-
-    export let name = "temper-parser";
-
-Modules imported here can have imports of their own:
-
-    import("./earley");
-    import("./grammar");
-    import("./test");
-    import("./main");
+    export let name = "temper-earley";
+    import("./parser");
