@@ -1,0 +1,67 @@
+
+let chr(s: String): Int {
+  return s.codePoints.read();
+}
+
+class State {
+  public str: List<String>;
+  public head: Int;
+  public line: Int;
+  public col: Int;
+
+  public static from(str: String): State {
+    return new State(str.split(""), 0, 1, 1);
+  }
+
+  public has(n: Int): Boolean {
+    return head + n < str.length;
+  }
+
+  public peek1(): String | Bubble {
+    if (has(1)) {
+      return str[head];
+    } else {
+      return bubble();
+    }
+  }
+
+  public skip1(): Void | Bubble {
+    if (has(1)) {
+      if (peek1() == "\n") {
+        line += 1;
+        col = 1;
+      } else {
+        col += 1;
+      }
+      head += 1;
+    } else {
+      bubble();
+    }
+  }
+
+  public read1(): String | Bubble {
+    var ret = peek1();
+    skip1();
+    return ret;
+  }
+
+  public with(k: fn(): Void | Bubble): Void {
+    var old = new State(str, head, line, col);
+    do {
+      k();
+    } orelse do {
+      head = old.head;
+      line = old.line;
+      col = old.col;
+    };
+  }
+
+  public match1(s: String): Boolean {
+    if (peek1() == s) {
+      skip1();
+      return true;
+    } else {
+      return false;
+    }
+  }
+}

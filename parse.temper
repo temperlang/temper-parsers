@@ -1,0 +1,321 @@
+
+interface Object {
+  public isItem(other: String): Boolean;
+  public isString(other: String): Boolean;
+  public toString(): String;
+}
+
+class ObjectString extends Object {
+  public data: String;
+
+  public isItem(other: String): Boolean {
+    return false;
+  }
+
+  public isString(other: String): Boolean {
+    return data == other;
+  }
+
+  public toString(): String {
+    return "\"${data}\"";
+  }
+}
+
+class ObjectItem extends Object {
+  public name: String;
+
+  public isItem(other: String): Boolean {
+    return name == other;
+  }
+
+  public isString(other: String): Boolean {
+    return false;
+  }
+
+  public toString(): String {
+    return "$${name}";
+  }
+}
+
+class ItemPart {
+  public isString: Boolean;
+  public data: String;
+
+  public toString(): String {
+    if (isString) {
+      return "\"${data}\"";
+    } else {
+      return data;
+    }
+  }
+
+  public eq(other: ItemPart): Boolean {
+    return isString == other.isString && data == other.data;
+  }
+}
+
+class Item {
+  public name: String;
+  public ents: List<ItemPart>;
+  public dot: Int;
+  public start: Int;
+
+  public toString(): String {
+    var build = new ListBuilder<String>();
+    build.add(name);
+    build.add("->");
+    for (var i = 0; i < dot; i++) {
+      build.add(ents[i].toString());
+    }
+    build.add("*");
+    for (var i = dot; i < ents.length; i++) {
+      build.add(ents[i].toString());
+    }
+    return build.join(" ") { (s);; s };
+  }
+
+  public advance(): Item {
+    return new Item(name, ents, dot + 1, start);
+  }
+
+  public eq(other: Item): Boolean {
+    if (name != other.name || dot != other.dot || ents.length != other.ents.length) {
+      return false;
+    }
+    for (var i = 0; i < ents.length; i++) {
+      if (!ents[i].eq(other.ents[i])) {
+        return false;
+      }
+    }
+    return true;
+  }
+}
+
+class StateSets {
+  public rules: Rules;
+  public sets: ListBuilder<ListBuilder<Item>>;
+
+  public constructor(ru: Rules, start: String): Void {
+    rules = ru;
+    sets = new ListBuilder<ListBuilder<Item>>();
+    sets.add(new ListBuilder<Item>());
+    var found = rules.find(start);
+    for (var i = 0; i < found.length; i++) {
+      sets[0].add(found[i].toItem(0));
+    }
+  }
+
+  public toString(): String {
+    var build = new ListBuilder<String>();
+    for (var i = 0; i < sets.length; i++) {
+      build.add("=== ${i.toString()} ===");
+      for (var j = 0; j < sets[i].length; j++) {
+        build.add(sets[i][j].toString());
+      }
+    }
+    return build.join("\n") { (s);; s };
+  }
+
+  public add(setv: ListBuilder<Item>, next: Item): Void {
+    var done = false;
+    for (var i = 0; i < setv.length; i++) {
+      if (setv[i].eq(next)) {
+        done = true;
+      }
+    }
+    if (!done) {
+      setv.add(next);
+    }
+  }
+
+  public string(input: List<String>): Void {
+    for (var i = 0; i < input.length; i++) {
+      var next = new ListBuilder<Item>();
+      for (var j = 0; j < sets[i].length; j++) {
+        var item = sets[i][j];
+        if (item.dot < item.ents.length) {
+          var ent = item.ents[item.dot];
+          if (ent.isString) {
+            // scan
+            if (ent.data == input[i]) {
+              next.add(item.advance());
+            }
+          } else {
+            // predict
+            var found = rules.find(ent.data);
+            for (var k = 0; k < found.length; k++) {
+              var next = found[k].toItem(i);
+              add(sets[i], next);
+            }
+          }
+        } else {
+          // complete
+          for (var k = 0; k < sets[item.start].length; k++) {
+            var old = sets[item.start][k];
+            if (old.dot < old.ents.length) {
+              var ent = old.ents[old.dot];
+              if (!ent.isString && ent.data == item.name) {
+                add(sets[i], old.advance());
+              }
+            }
+          }
+        }
+      }
+      console.log("=== ${i.toString()} ===");
+      for (var j = 0; j < sets[i].length; j++) {
+        console.log(sets[i][j].toString());
+      }
+      sets.add(next);
+    }
+    console.log("=== end ===");
+    for (var j = 0; j < sets[sets.length-1].length; j++) {
+      console.log(sets[sets.length-1][j].toString());
+    }
+  }
+}
+
+class RulePart {
+  public isString: Boolean;
+  public data: String;
+
+  public toString(): String {
+    if (isString) {
+      return "\"${data}\"";
+    } else {
+      return data;
+    }
+  }
+}
+
+class Rule {
+  public name: String;
+  public parts: List<RulePart>;
+
+  public constructor(s: String, ls: List<RulePart>): Void {
+    name = s;
+    parts = ls;
+  }
+
+  public toString(): String {
+    var build = new ListBuilder<String>();
+    build.add("rule ${name}:");
+    for (var i = 0; i < parts.length; i++) {
+      build.add(parts[i].toString());
+    }
+    return build.join(" ") { (s);; s };
+  }
+
+  public toItem(at: Int): Item {
+    var iparts = new ListBuilder<ItemPart>();
+    for (var i = 0; i < parts.length; i++) {
+      iparts.add(new ItemPart(parts[i].isString, parts[i].data));
+    }
+    return new Item(
+      name,
+      iparts.toList(),
+      0,
+      at,
+    );
+  }
+}
+
+class Rules {
+  public rules: ListBuilder<Rule>; 
+
+  public constructor(): Void {
+    rules = new ListBuilder<Rule>();
+  }
+
+  public add(rule: Rule): Void {
+    rules.add(rule);
+  }
+
+  public toString(): String {
+    return rules.join("\n", fn(rule: Rule): String {
+      return rule.toString();
+    });
+  }
+
+  public find(name: String): List<Rule> {
+    var ret = new ListBuilder<Rule>();
+    for (var i = 0; i < rules.length; i++) {
+      if (rules[i].name == name) {
+        ret.add(rules[i]);
+      }
+    }
+    return ret.toList();
+  }
+}
+
+class RuleBuilder {
+  public rname: String;
+  public parts: ListBuilder<ListBuilder<RulePart>>;
+  public rules: Rules;
+
+  public constructor(): Void {
+    rname = "";
+    parts = new ListBuilder<ListBuilder<RulePart>>();
+    rules = new Rules();
+  }
+
+  public name(s: String): RuleBuilder {
+    for (var i = 0; i < parts.length; i++) {
+      rules.add(new Rule(rname, parts[i].toList()));
+    }
+    rname = s;
+    parts = new ListBuilder<ListBuilder<RulePart>>();
+    return this;
+  }
+
+  public seq(): RuleBuilder {
+    parts.add(new ListBuilder<RulePart>());
+    return this;
+  }
+
+  public char(chr: String): RuleBuilder {
+    parts[parts.length-1].add(new RulePart(true, chr));
+    return this;
+  }
+
+  public rule(xname: String): RuleBuilder {
+    parts[parts.length-1].add(new RulePart(false, xname));
+    return this;
+  }
+
+  public call(cb: fn(Rules): Void): RuleBuilder {
+    cb(build());
+    return this;
+  }
+
+  public build(): Rules {
+    name("");
+    return rules;
+  }
+}
+
+export let run(s: String): Void {
+  var rules = new RuleBuilder()
+    .name("Sum")
+      .seq().rule("Sum").char("+").rule("Product")
+      .seq().rule("Product")
+    .name("Product")
+      .seq().rule("Product").char("*").rule("Factor")
+      .seq().rule("Factor")
+    .name("Factor")
+      .seq().char("(").rule("Sum").char(")")
+      .seq().rule("Number")
+    .name("Number")
+      .seq().rule("Digit").rule("Number")
+      .seq().rule("Digit")
+    .name("Digit")
+      .seq().char("1")
+      .seq().char("2")
+      .seq().char("3")
+      .seq().char("4")
+    .build();
+  console.log(rules.toString());
+  console.log("");
+  var sets = new StateSets(rules, "Sum");
+  sets.string(s.split(""));
+  // console.log(sets.toString());
+}
