@@ -13,78 +13,78 @@ let stringBody = " !#$%&()*+,-./${digits}:;<=>?@${uppercase}[]^_`${lowercase}{|}
 let ascii = "${stringBody}\\\"";
 
 export let larkish(): Earley {
-  return new Earley()
-    .name("Grammar")
-      .seq().rule("Ignore").rule("Defines").rule("Ignore")
-    .name("Defines")
-      .seq().rule("Defines").rule("Ignore").rule("Define").expand()
-      .seq().rule("Define").expand()
-    .name("Define")
-      .seq().rule("Name").rule("Ignore").rule("CharColon").rule("Ignore").rule("Pattern")
-    .name("Pattern")
-      .seq().rule("Select").expand()
-    .name("Select")
-      .seq().rule("SelectBody")
-    .name("SelectBody")
-      .seq().rule("SelectBody").rule("Ignore").rule("CharPipe").rule("Ignore").rule("Sequence").expand()
-      .seq().rule("Sequence").expand()
-    .name("Sequence")
-      .seq().rule("SequenceBody")
-    .name("SequenceBody")
-      .seq().rule("SequenceBody").rule("Ignore").rule("Postfix").expand()
-      .seq().rule("Postfix").expand()
-    .name("Postfix")
-      .seq().rule("Single").rule("Ignore").rule("CharPlus").alias("OneOrMore")
-      .seq().rule("Single").rule("Ignore").rule("CharTimes").alias("ZeroOrMore")
-      .seq().rule("Single").rule("Ignore").rule("CharQuestion").alias("ZeroOrOne")
-      .seq().rule("Postfix").rule("Ignore").rule("ExpandSymbol").alias("ToExpand")
-      .seq().rule("Postfix").rule("Ignore").rule("CharBang").alias("ToIgnore")
-      .seq().rule("Single").expand()
-    .name("Single")
-      .seq().rule("CharOpenParen").rule("Ignore").rule("Pattern").rule("Ignore").rule("CharCloseParen").expand()
-      .seq().rule("Name").alias("Rule")
-      .seq().rule("CharQuotes").rule("StringBody").rule("CharQuotes").alias("String")
-      .seq().rule("CharHashtag").char(ascii).rule("RangeSymbol").rule("CharHashtag").char(ascii).alias("CharRange")
-      .seq().rule("CharOpenSquare").rule("StringBody").rule("CharCloseSquare").alias("CharSet")
-      .seq().rule("CharHashtag").char(ascii).alias("CharSet")
-    .name("StringBody")
-      .seq().rule("StringData").token()
-    .name("StringData")
-      .seq().rule("StringData").rule("StringChar").expand()
-      .seq().char(stringBody).expand()
-    .name("StringChar")
-      .seq().char(stringBody)
-      .seq().rule("CharBackslach").rule("StringEscape").expand()
-    .name("StringEscape")
-      .seq().char("\"\'rtn")
-      .seq().char("x").char(digits).char(digits)
-    .name("Name")
-      .seq().rule("Letters").token()
-      .seq().rule("Name").char(".").rule("Letters").token()
-    .name("Letters")
-      .seq().rule("Letters").char(alnum).expand()
-      .seq().char(alpha).expand()
-    .name("Ignore")
-      .seq().rule("IgnoreChars").ignore()
-      .seq().ignore()
-    .name("IgnoreChars")
-      .seq().rule("IgnoreChars").char(" \t\r\n")
-      .seq().char(" \t\r\n")
-    .name("RangeSymbol").seq().str("..").ignore()
-    .name("ExpandSymbol").seq().char("").ignore()
-    .name("CharQuotes").seq().char("\"").ignore()
-    .name("CharColon").seq().char(":").ignore()
-    .name("CharPipe").seq().char("|").ignore()
-    .name("CharPlus").seq().char("+").ignore()
-    .name("CharTimes").seq().char("*").ignore()
-    .name("CharQuestion").seq().char("?").ignore()
-    .name("CharBang").seq().char("!").ignore()
-    .name("CharOpenParen").seq().char("(").ignore()
-    .name("CharCloseParen").seq().char(")").ignore()
-    .name("CharOpenSquare").seq().char("[").ignore()
-    .name("CharCloseSquare").seq().char("]").ignore()
-    .name("CharBackslash").seq().char(")").ignore()
-    .name("CharHashtag").seq().char("#").ignore();
+  var ret = new Earley();
+  ret.name("Grammar")
+    .seq().rule("Ignore").rule("Defines").rule("Ignore");
+  ret.name("Defines")
+    .seq().rule("Defines").rule("Ignore").rule("Define").expand()
+    .seq().rule("Define").expand();
+  ret.name("Define")
+    .seq().rule("Name").rule("Ignore").rule("CharColon").rule("Ignore").rule("Pattern");
+  ret.name("Pattern")
+    .seq().rule("Select").expand();
+  ret.name("Select")
+    .seq().rule("SelectBody");
+  ret.name("SelectBody")
+    .seq().rule("SelectBody").rule("Ignore").rule("CharPipe").rule("Ignore").rule("Sequence").expand()
+    .seq().rule("Sequence").expand();
+  ret.name("Sequence")
+    .seq().rule("SequenceBody");
+  ret.name("SequenceBody")
+    .seq().rule("SequenceBody").rule("Ignore").rule("Postfix").expand()
+    .seq().rule("Postfix").expand();
+  ret.name("Postfix")
+    .seq().rule("Single").rule("Ignore").rule("CharPlus").alias("OneOrMore")
+    .seq().rule("Single").rule("Ignore").rule("CharTimes").alias("ZeroOrMore")
+    .seq().rule("Single").rule("Ignore").rule("CharQuestion").alias("ZeroOrOne")
+    .seq().rule("Postfix").rule("Ignore").rule("ExpandSymbol").alias("ToExpand")
+    .seq().rule("Postfix").rule("Ignore").rule("CharBang").alias("ToIgnore")
+    .seq().rule("Single").expand();
+  ret.name("Single")
+    .seq().rule("CharOpenParen").rule("Ignore").rule("Pattern").rule("Ignore").rule("CharCloseParen").expand()
+    .seq().rule("Name").alias("Rule")
+    .seq().rule("CharQuotes").rule("StringBody").rule("CharQuotes").alias("String")
+    .seq().rule("CharHashtag").char(ascii).rule("RangeSymbol").rule("CharHashtag").char(ascii).alias("CharRange")
+    .seq().rule("CharOpenSquare").rule("StringBody").rule("CharCloseSquare").alias("CharSet")
+    .seq().rule("CharHashtag").char(ascii).alias("CharSet");
+  ret.name("StringBody")
+    .seq().rule("StringData").token();
+  ret.name("StringData")
+    .seq().rule("StringData").rule("StringChar").expand()
+    .seq().char(stringBody).expand();
+  ret.name("StringChar")
+    .seq().char(stringBody)
+    .seq().rule("CharBackslach").rule("StringEscape").expand();
+  ret.name("StringEscape")
+    .seq().char("\"\'rtn")
+    .seq().char("x").char(digits).char(digits);
+  ret.name("Name")
+    .seq().rule("Letters").token();
+  ret.name("Letters")
+    .seq().rule("Letters").char(alnum).expand()
+    .seq().char(alpha).expand();
+  ret.name("Ignore")
+    .seq().rule("IgnoreChars").ignore()
+    .seq().ignore();
+  ret.name("IgnoreChars")
+    .seq().rule("IgnoreChars").char(" \t\r\n")
+    .seq().char(" \t\r\n");
+  ret.name("RangeSymbol").seq().str("..").ignore();
+  ret.name("ExpandSymbol").seq().str("...").ignore();
+  ret.name("CharQuotes").seq().char("\"").ignore();
+  ret.name("CharColon").seq().char(":").ignore();
+  ret.name("CharPipe").seq().char("|").ignore();
+  ret.name("CharPlus").seq().char("+").ignore();
+  ret.name("CharTimes").seq().char("*").ignore();
+  ret.name("CharQuestion").seq().char("?").ignore();
+  ret.name("CharBang").seq().char("!").ignore();
+  ret.name("CharOpenParen").seq().char("(").ignore();
+  ret.name("CharCloseParen").seq().char(")").ignore();
+  ret.name("CharOpenSquare").seq().char("[").ignore();
+  ret.name("CharCloseSquare").seq().char("]").ignore();
+  ret.name("CharBackslash").seq().char(")").ignore();
+  ret.name("CharHashtag").seq().char("#").ignore();
+  return ret;
 }
 
 export let toEarley(whole: Tree): Earley {
@@ -99,6 +99,7 @@ export let toEarley(whole: Tree): Earley {
   }
 
   let translateNode(node: Node, cb: fn(String): Void): Void {
+    // console.log(node.toString());
     if (node.type == "Grammar") {
       node.forEach { (tree);;
         translate(tree) { (name);; };

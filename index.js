@@ -7,23 +7,23 @@ start: topLevel*
 
 topLevel: decorator? varDecl
 
-varDecl: ("export" | "public" | "private" | "static" | "get" | "set" | "var" | "let" | "const")* ident ("="! "3")? ";"!
+varDecl: ("export" | "public" | "private" | "static" | "get" | "set" | "var" | "let" | "const")* ident ("="! expr)? ";"!
 
-expr: logic...
+expr: logic
 
-logic: logic ("&&" | "||") cmp | cmp...
+logic: logic ("&&" | "||") cmp | cmp
 
-cmp: add ("<" | ">" | "<=" | ">=" | "==" | "!=") add | add...
+cmp: add ("<" | ">" | "<=" | ">=" | "==" | "!=") add | add
 
-add: add [+-] mul | add...
+add: add [+-] mul | mul
 
-mul: mul [*/%] pow | mul...
+mul: mul [*/%] pow | pow
 
-pow: single "**" pow | single...
+pow: single "**" pow | single
 
-single: ident... | number... | "(" expr... ")"
+single: ident | number | "("! expr ")"!
 
-number: int... | float...
+number: int | float
 
 int: INT
 
@@ -42,6 +42,7 @@ ignore: WHITESPACE
 
 console.log(parser.parse(`
 
-    let x;
+    let x = 3;
+    let y = x;
 
 `).toString());
