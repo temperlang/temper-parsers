@@ -360,6 +360,37 @@ export class Earley {
     return this;
   }
 
+  public expandTwice(): Earley {
+    consBy[consBy.length-1] = fn(items: List<Tree>): List<Tree> {
+      var ret = new ListBuilder<Tree>();
+      for (var i = 0; i < items.length; i++) {
+        if (items[i] is Node) {
+          ret.addAll(items[i].as<Node>().items);
+        } else {
+          ret.add(items[i]);
+        }
+      }
+    };
+    return this;
+  }
+
+  public expandToTokens(): Earley {
+    consBy[consBy.length-1] = fn(items: List<Tree>): List<Tree> {
+      var ret = new ListBuilder<Tree>();
+      let more(items: List<Tree>): Void {
+        for (var i = 0; i < items.length; i++) {
+          if (items[i] is Node) {
+            more(items[i].as<Node>().items);
+          } else {
+            ret.add(items[i]);
+          }
+        }
+      }
+      more(items);
+    };
+    return this;
+  }
+
   public token(): Earley {
     let walk(trees: List<Tree>): String {
       return trees.join("", fn(t: Tree): String {

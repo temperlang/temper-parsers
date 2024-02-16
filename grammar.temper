@@ -196,7 +196,7 @@ export let toEarley(whole: Tree): Earley {
     if (node.type == "ToExpand") {
       var name = genName();
       translate(node.items[0]) { (item);;
-        earley.name(name).seq().rule(item).expand();
+        earley.name(name).seq().rule(item).expandTwice();
         cb(name);
       };
       return;

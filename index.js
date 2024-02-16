@@ -5,9 +5,11 @@ const parser = new Parser(`
 
 start: topLevel*
 
-topLevel: decorator? varDecl
+blockBody: (topLevel ";") expr?
 
-varDecl: ("export" | "public" | "private" | "static" | "get" | "set" | "var" | "let" | "const")* ident ("="! expr)? ";"!
+topLevel: (decorator? varDecl) ";"!
+
+varDecl: ("export" | "public" | "private" | "static" | "get" | "set" | "var" | "let" | "const")* ident ("="! expr)?
 
 expr: logic
 
