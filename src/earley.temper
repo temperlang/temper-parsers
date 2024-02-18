@@ -4,6 +4,7 @@ let {...} = import('./tree.temper');
 interface ItemPart {
   public isTest(): Boolean;
   public name(): String;
+  public chars(): List<String>;
   public check(s: String): Boolean;
   public toString(): String;
 }
@@ -17,6 +18,10 @@ class ItemPartItem extends ItemPart {
 
   public name(): String {
     return rule;
+  }
+
+  public chars(): List<String> {
+    return [];
   }
 
   public check(s: String): Boolean {
@@ -37,6 +42,10 @@ class ItemPartSet extends ItemPart {
 
   public name(): String {
     return "FAKE ${vals.join(" | ") { (s);; s }}";
+  }
+
+  public chars(): List<String> {
+    return vals;
   }
 
   public check(s: String): Boolean {
@@ -60,13 +69,17 @@ class Item {
   public dot: Int;
   public start: Int;
   public id: Int;
+  public errors: Int;
   private trees: Listed<fn(): Listed<Tree>>;
   private cons: fn(Listed<Tree>): Listed<Tree>;
 
   public toString(): String {
     var build = new ListBuilder<String>();
     build.add(name);
-    build.add("(${start.toString()})");
+    build.add("(start: ${start.toString()})");
+    if (errors != 0) {
+      build.add("(errors: ${errors.toString()})");
+    }
     build.add("->");
     for (var i = 0; i < dot; i++) {
       build.add(ents[i].toString());
@@ -78,15 +91,22 @@ class Item {
     return build.join(" ") { (s);; s };
   }
 
+  public advanceWithError(add: Int, got: fn(): Listed<Tree>): Item {
+    var next = new ListBuilder<fn(): Listed<Tree>>();
+    next.addAll(trees);
+    next.add(got);
+    return new Item(name, ents, dot + 1, start, id, errors + add, next, cons);
+  }
+
   public advanceWith(got: fn(): Listed<Tree>): Item {
     var next = new ListBuilder<fn(): Listed<Tree>>();
     next.addAll(trees);
     next.add(got);
-    return new Item(name, ents, dot + 1, start, id, next, cons);
+    return new Item(name, ents, dot + 1, start, id, errors, next, cons);
   }
 
   public advance(): Item {
-    return new Item(name, ents, dot + 1, start, id, trees, cons);
+    return new Item(name, ents, dot + 1, start, id, errors, trees, cons);
   }
 
   public eq(other: Item): Boolean {
@@ -108,20 +128,45 @@ class WithNextList {
 }
 
 class StateSet {
+  public nexts: MapBuilder<String, ListBuilder<Item>>;
   private setv: ListBuilder<Item>;
-  private nexts: MapBuilder<String, WithNextList>;
+  private hashes: MapBuilder<Int, ListBuilder<Item>>;
 
-  constructor() {
+  public constructor() {
     setv = new ListBuilder<Item>();
-    nexts = new MapBuilder<String, Listed<Item>>();
+    nexts = new MapBuilder<String, ListBuilder<Item>>();
+    hashes = new MapBuilder<Int, ListBuilder<Item>>();
   }
   
   public add(next: Item): Boolean {
-    for (var i = 0; i < setv.length; i++) {
-      if (setv[i].eq(next)) {
-        return false;
+    var hash = next.id * next.ents.length + next.dot;
+    var got = hashes.getOr(hash, new ListBuilder<Item>());
+    var len = got.length;
+    if (len == 0) {
+      hashes[hash] = got;
+    } else {
+      for (var i = 0; i < len; i++) {
+        var cur = got.getOr(i, next);
+        if (cur.eq(next)) {
+          if (cur.errors > next.errors) {
+            got[i] = next;
+          }
+          return false;
+        }
       }
     }
+    if (next.dot < next.ents.length) {
+      var ent = next.ents[next.dot];
+      var at = ent.name(); 
+      var nextv = nexts.getOr(at, new ListBuilder<Item>());
+      if (nextv.length == 0) {
+        nexts[at] = nextv;
+      }
+      if (!ent.isTest()) {
+        nextv.add(next);
+      }
+    }
+    got.add(next);
     setv.add(next);
     return true;
   }
@@ -134,9 +179,14 @@ class StateSet {
     return setv.length;
   }
 
+  public withNextCached(type: String): Listed<Item> {
+    return nexts.getOr(type, new ListBuilder<Item>());
+  }
+
   public withNext(type: String): Listed<Item> {
-    var next = nexts[type] orelse new WithNextList(0, new ListBuilder<Item>());
-    for (var k = next.last; k < setv.length; k++) {
+    // var next = nextWiths[type] orelse new WithNextList(0, new ListBuilder<Item>());
+    var next = new WithNextList(0, new ListBuilder<Item>());
+    for (var k = 0; k < setv.length; k++) {
       var old = setv[k];
       if (old.dot < old.ents.length) {
         var ent = old.ents[old.dot];
@@ -145,7 +195,8 @@ class StateSet {
         }
       }
     }
-    next.last = setv.length;
+    // nextWiths[type] = next;
+    // next.last = setv.length;
     return next.ents;
   }
 }
@@ -168,6 +219,12 @@ let tokenLambda(input: String): fn(): Listed<Tree> {
   };
 }
 
+let errorLambda(wanted: List<String>, got: String): fn(): Listed<Tree> {
+  return fn(): List<Tree> {
+    return [new Error(wanted, got)];
+  };
+}
+
 class StateSets {
   public rules: Rules;
   public sets: ListBuilder<StateSet>;
@@ -182,7 +239,7 @@ class StateSets {
       rules.rules.toList()
     };
     for (var i = 0; i < found.length; i++) {
-      sets[0].add(found[i].toItem(0));
+      sets[0].add(found[i].toItem(0, 0));
     }
   }
 
@@ -212,7 +269,7 @@ class StateSets {
           // predict
           var found = rules.find(ent.name());
           for (var k = 0; k < found.length; k++) {
-            var itemFound = found[k].toItem(i);
+            var itemFound = found[k].toItem(i, 0);
             last.add(itemFound);
             if (rules.nullable[itemFound.id]) {
               var magic = item.advance();
@@ -223,9 +280,11 @@ class StateSets {
       } else {
         // complete
         var tree = toTreeLambda(item);
-        var olds = sets[item.start].withNext(item.name);
+        // var olds = sets[item.start].withNext(item.name);
+        var olds = sets[item.start].withNextCached(item.name);
+        // console.log("${oldsCached.length.toString()} == ${olds.length.toString()}");
         for (var k = 0; k < olds.length; k++) {
-          last.add(olds[k].advanceWith(tree));
+          last.add(olds[k].advanceWithError(item.errors, tree));
         }
       }
     }
@@ -241,6 +300,10 @@ class StateSets {
         console.log("Error at char#${i.toString()} (char: ${input[i]})");
         return;
       }
+      // console.log("=== ${i.toString()} (char: ${input[i]}) ===");
+      // for (var i = 0; i < next.length; i++) {
+      //   console.log(next[i].toString());
+      // }
       sets.add(next);
     }
     var next = new StateSet();
@@ -291,7 +354,7 @@ class Rule {
     return build.join(" ") { (s);; s };
   }
 
-  public toItem(at: Int): Item {
+  public toItem(at: Int, errors: Int): Item {
     var iparts = new ListBuilder<ItemPart>();
     for (var i = 0; i < parts.length; i++) {
       if (parts[i].isString) {
@@ -300,7 +363,7 @@ class Rule {
         iparts.add(new ItemPartItem(parts[i].data));
       }
     }
-    return new Item(name, iparts.toList(), 0, at, id, [], cons);
+    return new Item(name, iparts.toList(), 0, at, id, errors, [], cons);
   }
 }
 

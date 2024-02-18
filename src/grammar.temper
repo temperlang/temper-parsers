@@ -39,12 +39,12 @@ export let larkish(): Earley {
     .seq().rule("Single").rule("Ignore").rule("CharTimes").alias("ZeroOrMore")
     .seq().rule("Single").rule("Ignore").rule("CharQuestion").alias("ZeroOrOne")
     .seq().rule("Single").rule("Ignore").rule("CharCaret").alias("ToExpand")
-    .seq().rule("Single").rule("Ignore").rule("CharBang").alias("ToIgnore")
     .seq().rule("Single").expand();
   ret.name("Single")
     .seq().rule("CharOpenParen").rule("Ignore").rule("Pattern").rule("Ignore").rule("CharCloseParen").expand()
     .seq().rule("Name").alias("Rule")
     .seq().rule("CharQuotes").rule("StringBody").rule("CharQuotes").alias("String")
+    .seq().rule("CharQuotes").rule("StringBody").rule("CharQuotes").rule("CharBang").alias("TokenString")
     .seq().rule("CharOpenSquare").rule("StringBody").rule("CharCloseSquare").alias("CharSet")
     .seq().rule("CharHashtag").char(ascii).alias("CharSet");
   ret.name("StringBody")
@@ -62,10 +62,9 @@ export let larkish(): Earley {
     .seq().rule("Name").rule("Ignore").rule("CharQuestion").alias("ExpandName")
     .seq().rule("Name").alias("Name");
   ret.name("Name")
-    .seq().rule("Name").char(".").rule("Letters").token()
     .seq().rule("Letters").token();
   ret.name("Letters")
-    .seq().rule("Letters").char(alnum).expand()
+    .seq().rule("Letters").char("${alpha}_.").expand()
     .seq().char(alpha).expand();
   ret.name("Ignore")
     .seq().rule("IgnoreChars").ignore()
@@ -244,6 +243,12 @@ export let toEarley(whole: Tree): Earley {
       return;
     }
     if (node.type == "String") {
+      var name = genName();
+      earley.name(name).seq().str(node.items[0].as<Token>().value).ignore();
+      cb(name);
+      return;
+    }
+    if (node.type == "TokenString") {
       var name = genName();
       earley.name(name).seq().str(node.items[0].as<Token>().value).token();
       cb(name);

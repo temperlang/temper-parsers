@@ -1,3 +1,4 @@
 temper.out
 package-lock.json
 node_modules
+*.cpuprofile

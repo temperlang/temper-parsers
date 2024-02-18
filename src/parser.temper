@@ -18,6 +18,10 @@ export class Parser {
     return earley.first("__start__", str);
   }
 
+  public trees(str: String): List<Tree> {
+    return earley.trees("__start__", str);
+  }
+
   public findAll(str: String): List<Tree> {
     return earley.all("__start__", str);
   }

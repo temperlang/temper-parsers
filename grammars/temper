@@ -1,20 +1,38 @@
 
-start: (topLevel ";"!)* expr?
+start: (stmt)* expr?
 
-blockBody: (topLevel ";"!)* expr?
+block_body: (stmt)* expr?
 
-topLevel?: varDecl | expr | returnStmt
+stmt?: semi_stmt ";" | for_stmt | while_stmt
 
-returnStmt: "return"! expr?
+semi_stmt?: var_decl | expr | returnStmt
 
-varDecl: ("export" | "public" | "private" | "static" | "get" | "set" | "var" | "let" | "const")+ ident ("="! expr)?
+for_stmt: "for" "(" for_stmt_decl? ";" for_stmt_check? ";" for_stmt_next? ")" "{" block_body "}"
+for_stmt_decl: var_decl | expr
+for_stmt_check: expr
+for_stmt_next: expr
+
+while_stmt: "while" "(" expr ")" "{" block_body "}"
+
+returnStmt: "return" expr?
+
+var_decl: ("export"! | "public"! | "private"! | "static"! | "var"!)+ ident -> var_decl
+var_decl: ("export"! | "public"! | "private"! | "static"! | "var"!)+ ident ":" type -> typed_var_decl
+var_decl: ("export"! | "public"! | "private"! | "static"! | "var"! | "let"! | "const"!)+ ident "=" expr? -> var_decl_and_init
+var_decl: ("export"! | "public"! | "private"! | "static"! | "var"! | "let"! | "const"!)+ ident ":" type "=" expr? -> typed_var_decl_and_init
 
 expr?: logic
+
+assign: postfix "." ident "=" assign -> set_prop
+assign: postfix "[" expr "]" "=" assign -> set_index
+assign: ident ("+="! | "*="! | "/="! | "-="! | "%="!) assign -> set_mut_var
+assign: ident "=" assign -> set_var
+assign?: logic
 
 logic : logic ("&&" | "||") cmp -> binary
 logic?: cmp
 
-cmp: add ("<" | ">" | "<=" | ">=" | "==" | "!=") add -> binary
+cmp: add ("<"! | ">"! | "<="! | ">="! | "=="! | "=="!) add -> binary
 cmp?: add
 
 add: add [+-] mul -> binary
@@ -23,34 +41,37 @@ add?: mul
 mul: mul [*/%] pow -> binary
 mul?: pow
 
-pow: prefix "**" pow -> binary
+pow: prefix "**"! pow -> binary
 pow?: prefix
 
 prefix: [-+] postfix -> unary
 prefix?: postfix
 
-postfix: postfix "["! expr "]"! -> index
-postfix: postfix "."! ident -> dot
+postfix: postfix "[" expr "]" -> index
+postfix: postfix "." ident -> prop
 postfix: postfix args -> call
-postfix: "new"! type args -> new
+postfix: "new" type args -> new
 postfix?: single
 
-args?: "("! (expr ","!)* expr? ")"! blockArg*
-args?: blockArg+
-blockArg: "{"! blockSig ";;"! blockBody "}"!
+args?: "(" (expr ",")* expr? ")" block_arg*
+args?: block_arg+
+block_arg: "{" block_sig ";;" block_body "}"
 
-single?: ident | int | float | array | "("! expr ")"!
+single?: ident | int | float | array | "(" expr ")"
 
-array: "["!  "]"!
+array: "["  "]"
 
-blockSig: "("! (maybeTypedParam ","!)* maybeTypedParam? ")"! ":"! type
-blockSig: "("! (maybeTypedParam ","!)* maybeTypedParam? ")"! -> blockSigAutoReturn
+block_sig: "(" (maybe_typed_param ",")* maybe_typed_param? ")" (":" return_type)?
 
-maybeTypedParam: ident ":"! type -> typedParam
-maybeTypedParam: ident -> untypedParam
+maybe_typed_param: ident ":" type -> typed_param
+maybe_typed_param: ident -> non_typed_param
 
-type: ident
-type: ident "<"! (type ","!)* type? ">"! -> genericType 
+type: ident -> nominalType
+type: "fn" "(" (param_type ",")* param_type? ")" (":" return_type)? -> function_type
+type: ident "<" (type ",")* type? ">" -> generic_type
+
+param_type: type
+return_type: type
 
 int: INT
 
@@ -58,7 +79,7 @@ float: FLOAT
 
 ident: CNAME
 
-FLOAT: INT "." INT
-INT: "0" | [123456789] DIGIT*
+FLOAT: INT "." [0123456789]*
+INT: "0" | [123456789] [0123456789]*
 
 ignore: WHITESPACE

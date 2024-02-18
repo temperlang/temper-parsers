@@ -1,0 +1,5 @@
+
+var v1: Int;
+var v2: List<Int>; 
+var v3: fn(Int): Int;
+var v4: Map<String, fn(): Void>;

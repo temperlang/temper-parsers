@@ -3,6 +3,15 @@ export interface Tree {
   public toString(): String;
 }
 
+export class Error extends Tree {
+  public wanted: List<String>;
+  public got: String;
+
+  public toString(): String {
+    return "(error: char: ${got})";
+  }
+}
+
 export class Token extends Tree {
   public value: String;
 
@@ -55,7 +64,7 @@ export let format(base: Tree): String {
         var node = tree.as<Node>();
         var str = node.toString();
         var n = line();
-        if (str.codePoints.length + n < 80) {
+        if (str.codePoints.length + n < 80 && depth != 0) {
           builder.add(str);
         } else {
           builder.add("(${node.type}");
@@ -77,7 +86,9 @@ export let format(base: Tree): String {
 
   more(base);
 
-  builder.removeLast();
+  // if (builder.length != 0) {
+  //   builder.removeLast();
+  // }
 
   return builder.join("") { (s);; s }
 }
