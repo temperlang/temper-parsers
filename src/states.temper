@@ -78,10 +78,10 @@ let tokenLambda(input: String): fn(): Listed<Tree> {
 
 export class StateSets {
   public nullable: DenseBitVector;
-  public byName: Map<String, List<Rule>>;
+  public byName: Mapped<String, Listed<Rule>>;
   public sets: ListBuilder<StateSet>;
 
-  public constructor(n: DenseBitVector, s: StateSet, b: Map<String, List<Rule>>): Void {
+  public constructor(n: DenseBitVector, s: StateSet, b: Mapped<String, Listed<Rule>>): Void {
     nullable = n;
     byName = b;
     sets = new ListBuilder<StateSet>();

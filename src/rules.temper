@@ -40,7 +40,7 @@ export class Rule {
 export class Rules {
   public nullable: ListBuilder<Boolean>;
   public rules: ListBuilder<Rule>;
-  public byName: Map<String, List<Rule>>;
+  public byName: Mapped<String, Listed<Rule>>;
   private var built: Boolean;
 
   public constructor(): Void {
@@ -57,14 +57,7 @@ export class Rules {
       ls.add(rule);
       byNameBuilder[rule.name] = ls;
     }
-    var ls = byNameBuilder
-      .toList()
-      .map(
-        fn(pair: Pair<String, ListBuilder<Rule>>): Pair<String, List<Rule>> {
-        return new Pair<String, List<Rule>>(pair.key, pair.value.toList());
-      }
-    );
-    byName = new Map(ls);
+    byName = byNameBuilder;
     nullable = new ListBuilder<Boolean>();
     for (var j = 0; j < rules.length; j++) {
       nullable.add(rules[j].parts.length == 0);

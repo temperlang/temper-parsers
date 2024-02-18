@@ -5,6 +5,9 @@
 
 # Temper Parser
 
-[The Temper Grammar](grammars/temper) is a temper parser in the `temper-parser` grammar language.
+[The Temper Grammar](grammars/temper) is the start of a Temper Grammar.
+
+It can parse all .temper files that make up it's source code.
+Other than `config.temper.md`, as a .md grammar has not been written.
 
 It almost certainly has some missing things somewhere.
