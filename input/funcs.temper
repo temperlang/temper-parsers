@@ -1,0 +1,8 @@
+
+let f1(x) {}
+let f2(x: T) {}
+let f3(x): R {}
+let f4(x: T): R {}
+let f4(x: T, y: T, z: T): R {}
+let f5<T>(x: T): T {}
+let f6<out T, in U extends T>() {}

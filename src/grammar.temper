@@ -9,7 +9,8 @@ var alpha = "${lowercase}${uppercase}";
 var alnum = "${alpha}${digits}";
 var word0 = "${alpha}_";
 var word1 = "${word0}${digits}";
-let stringBody = " !#$%&()*+,-./${digits}:;<=>?@${uppercase}[]^_`${lowercase}{|}~";
+let stringBodyBase = " !#%&()*+,-./${digits}:;<=>?@${uppercase}[]^_`${lowercase}{|}~'";
+let stringBody = "${stringBodyBase}\$";
 let ascii = "${stringBody}\\\"";
 
 export let larkish(): Earley {
@@ -56,7 +57,7 @@ export let larkish(): Earley {
     .seq().char(stringBody)
     .seq().rule("CharBackslash").rule("StringEscape").expand();
   ret.name("StringEscape")
-    .seq().char("\"\'rtn")
+    .seq().char("\"'rtn")
     .seq().char("x").char(digits).char(digits);
   ret.name("DefineName")
     .seq().rule("Name").rule("Ignore").rule("CharQuestion").alias("ExpandName")
@@ -274,6 +275,12 @@ export let toEarley(whole: Tree): Earley {
   earley.name("__ignores__").seq().rule("ignore").ignore();
   earley.name("ignore").seq().ignore();
 
+  earley.name("BACKSLASH").seq().char("\\").token();
+  earley.name("DOLLAR").seq().char("\$").ignore();
+  earley.name("DOLLAR_IGNORE").seq().char("\$").ignore();
+  earley.name("STRING_BODY_BASE").seq().char(stringBodyBase).token();
+  earley.name("SINGLE_QUOTE_IGNORE").seq().char("'").ignore();
+  earley.name("DOUBLE_QUOTE_IGNORE").seq().char("\"").ignore();
   earley.name("DIGIT").seq().char(digits).token();
   earley.name("DIGITS").seq().char(digits).rule("DIGITS").token();
   earley.name("DIGITS").seq().char(digits).token();

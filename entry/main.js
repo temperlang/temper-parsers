@@ -6,6 +6,8 @@ import {argv} from 'process';
 
 const parser = new Parser(String(readFileSync(argv[2])));
 
-const data = parser.parse(String(readFileSync(argv[3])));
-
-console.log(format(data));
+for (let i = 3; i < argv.length; i++) {
+    const data = parser.parse(String(readFileSync(argv[i])));
+    
+    console.log(format(data));
+}

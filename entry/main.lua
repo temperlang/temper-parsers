@@ -13,6 +13,8 @@ local function read(name)
 end
 
 local p = parser.Parser(read(arg[1]))
-local data = p:parse(read(arg[2]))
+for i=2, #arg do
+    local data = p:parse(read(arg[i]))
+    print(tree.format(data))
+end
 
-print(tree.format(data))
