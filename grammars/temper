@@ -1,9 +1,4 @@
 
-import {Parser} from 'temper-earley/parser';
-import {format} from 'temper-earley/tree';
-
-const parser = new Parser(`
-
 start: (topLevel ";"!)* expr?
 
 blockBody: (topLevel ";"!)* expr?
@@ -67,19 +62,3 @@ FLOAT: INT "." INT
 INT: "0" | [123456789] DIGIT*
 
 ignore: WHITESPACE
-
-`);
-
-const data = parser.parse(`
-
-    var builder = new ListBuilder<Int>();
-    builder.add(1);
-    builder.add(2);
-    var twice = builder.map { (x);;
-        return x * 2;
-    };
-    console.log(twice[0]);
-
-`);
-
-console.log(format(data));

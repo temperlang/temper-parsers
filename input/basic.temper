@@ -1,0 +1,8 @@
+
+var builder = new ListBuilder<Int>();
+builder.add(1);
+builder.add(2);
+var twice = builder.map { (x);;
+    return x * 2;
+};
+console.log(twice[0]);
