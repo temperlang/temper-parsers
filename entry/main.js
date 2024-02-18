@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import {readFileSync} from 'fs';
-import {Parser, format} from 'temper-earley/all-exports.js';
+import {Parser, format} from 'temper-parsers/all-exports.js';
 import {argv} from 'process';
 
 const parser = new Parser(String(readFileSync(argv[2])));

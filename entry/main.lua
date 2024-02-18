@@ -2,8 +2,8 @@
 
 package.path = 'temper.out/lua/?.lua'
 
-local parser = require('temper-earley.src.parser')
-local tree = require('temper-earley.src.tree')
+local parser = require('temper-parsers.src.parser')
+local tree = require('temper-parsers.src.tree')
 
 local function read(name)
     local f = io.open(name)
