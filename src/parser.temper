@@ -1,17 +1,18 @@
 
 
-let { Earley } = import("./earley");
-let { larkish, toEarley } = import("./grammar");
-let { Tree, format } = import("./tree");
+let {...} = import("./earley");
+let {...} = import("./larkish");
+let {...} = import("./grammar");
+let {...} = import("./tree");
 
 var larky = larkish();
 
 export class Parser {
   private earley: Earley;
 
-  public constructor(grammar: String): Void {
-    var tree = larky.first("Grammar", grammar);
-    earley = toEarley(tree);
+  public constructor(src: String): Void {
+    var tree = larky.first("Grammar", src);
+    earley = grammar(tree);
   }
 
   public parse(str: String): Tree | Bubble {

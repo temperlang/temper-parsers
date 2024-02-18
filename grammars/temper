@@ -7,6 +7,9 @@ stmt?: semi_stmt ";" | semi_opt_stmt ";"?
 
 semi_opt_stmt: func_def | for_stmt | while_stmt | if_stmt | class_def | interface_def | match_stmt
 
+do_stmt?: do_expr
+if_stmt?: if_expr
+
 semi_stmt?: var_decl | func_decl | expr | returnStmt
 
 for_stmt: "for" "(" for_stmt_decl? ";" for_stmt_check? ";" for_stmt_next? ")" "{" block_body "}"
@@ -14,7 +17,6 @@ for_stmt_decl: var_decl | expr
 for_stmt_check: expr
 for_stmt_next: expr
 
-if_stmt: "if" "(" expr ")" "{" block_body "}"
 while_stmt: "while" "(" expr ")" "{" block_body "}"
 
 match_stmt: "match" "(" expr ")" "{" match_cases "}"
@@ -45,7 +47,10 @@ assign: postfix "." ident "=" assign -> set_prop
 assign: postfix "[" expr "]" "=" assign -> set_index
 assign: ident ("+="! | "*="! | "/="! | "-="! | "%="!) assign -> set_mut_var
 assign: ident "=" assign -> set_var
-assign?: logic
+assign?: orelse
+
+orelse: logic "orelse" orelse
+orelse?: logic
 
 logic : logic ("&&" | "||") cmp -> binary
 logic?: cmp
@@ -76,7 +81,15 @@ args?: "(" (expr ",")* expr? ")" block_arg*
 args?: block_arg+
 block_arg: "{" block_sig ";;" block_body "}"
 
-single?: ident | string | int | float | array | "(" expr ")"
+single?: ident | fn_expr | if_expr | do_expr | string | int | float | array | "(" expr ")"
+
+do_expr: "do" "{" block_body "}"
+if_expr: "if" "(" expr ")" "{" block_body "}" else_if* else?
+else_if: "else" "if" "(" expr ")" "{" block_body "}"
+else: "else" "{" block_body "}"
+
+fn_expr: "fn" fn_expr_type "{" block_body "}"
+fn_expr_type: "(" (maybe_typed_param ",")* maybe_typed_param? ")" (":" return_type)?
 
 string: SINGLE_QUOTE_IGNORE (DOLLAR_IGNORE "{" expr "}" | STRING_BODY)* SINGLE_QUOTE_IGNORE
 string: DOUBLE_QUOTE_IGNORE (DOLLAR_IGNORE "{" expr "}" | STRING_BODY)* DOUBLE_QUOTE_IGNORE
@@ -95,12 +108,14 @@ type_param: (CONTRAVARIANT | COVARIANT)? type_param_name type_extends?
 type_param_name: ident
 type_extends: "extends" type
 
-type: ident -> nominalType
+type: type | "Null" -> nullable_type
+type: ident -> nominal_type
 type: "fn" "(" (param_type ",")* param_type? ")" (":" return_type)? -> function_type
 type: ident "<" (type ",")* type? ">" -> generic_type
 
 param_type: type
 return_type: type
+return_type: type "|" "Bubble" -> type_or_bubble
 
 int: INT
 

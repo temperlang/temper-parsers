@@ -1,0 +1,118 @@
+
+let {...} = import("std/regex");
+let {...} = import("./tree.temper");
+
+export interface ItemPart {
+  public isTest(): Boolean;
+  public name(): String;
+  public chars(): List<String>;
+  public check(s: String): Boolean;
+  public toString(): String;
+}
+
+export class ItemPartItem extends ItemPart {
+  public rule: String;
+  
+  public isTest(): Boolean {
+    return false;
+  }
+
+  public name(): String {
+    return rule;
+  }
+
+  public chars(): List<String> {
+    return [];
+  }
+
+  public check(s: String): Boolean {
+    return false;
+  }
+
+  public toString(): String {
+    return rule;
+  }
+}
+
+export class ItemPartSet extends ItemPart {
+  public vals: List<String>;
+  private regex: CompiledRegex;
+
+  public constructor(args: List<String>): Void {
+    vals = args;
+    var ents = new ListBuilder<CodePart>();
+    for (var i = 0; i < args.length; i++) {
+      ents.add(new CodePoints(args[i]));
+    }
+    regex = new CodeSet(ents.toList(), false).compiled();
+  }
+  
+  public isTest(): Boolean {
+    return true;
+  }
+
+  public name(): String {
+    return "FAKE ${vals.join(" | ") { (s);; s }}";
+  }
+
+  public chars(): List<String> {
+    return vals;
+  }
+
+  public check(s: String): Boolean {
+    return regex.found(s);
+  }
+
+  public toString(): String {
+    var joined = vals.join("|") { (s);; s };
+    return "/${joined}/";
+  }
+}
+
+export class Item {
+  public name: String;
+  public ents: List<ItemPart>;
+  public dot: Int;
+  public start: Int;
+  public id: Int;
+  private trees: Listed<fn(): Listed<Tree>>;
+  private cons: fn(Listed<Tree>): Listed<Tree>;
+
+  public toString(): String {
+    var build = new ListBuilder<String>();
+    build.add(name);
+    build.add("(start: ${start.toString()})");
+    build.add("->");
+    for (var i = 0; i < dot; i++) {
+      build.add(ents[i].toString());
+    }
+    build.add("*");
+    for (var i = dot; i < ents.length; i++) {
+      build.add(ents[i].toString());
+    }
+    return build.join(" ") { (s);; s };
+  }
+
+  public advanceWith(got: fn(): Listed<Tree>): Item {
+    var next = new ListBuilder<fn(): Listed<Tree>>();
+    next.addAll(trees);
+    next.add(got);
+    return new Item(name, ents, dot + 1, start, id, next, cons);
+  }
+
+  public advance(): Item {
+    return new Item(name, ents, dot + 1, start, id, trees, cons);
+  }
+
+  public eq(other: Item): Boolean {
+    return id == other.id && start == other.start && dot == other.dot; 
+  }
+
+  public toTree(): Listed<Tree> {
+    var realTrees = new ListBuilder<Tree>();
+    for (var i = 0; i < trees.length; i++) {
+      realTrees.addAll(trees[i]());
+    }
+    return cons(realTrees);
+  }
+}

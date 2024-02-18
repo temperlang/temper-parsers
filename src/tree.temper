@@ -73,7 +73,7 @@ export let format(base: Tree): String {
             more(node.items[i]);
           }
           depth -= 1;
-          builder.add(")")
+          builder.add(")");
         }
       };
       is Token -> do {
@@ -86,9 +86,5 @@ export let format(base: Tree): String {
 
   more(base);
 
-  // if (builder.length != 0) {
-  //   builder.removeLast();
-  // }
-
-  return builder.join("") { (s);; s }
+  return builder.join("") { (s);; s };
 }

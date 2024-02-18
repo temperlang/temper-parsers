@@ -1,0 +1,110 @@
+
+let {...} = import("./tree.temper");
+let {...} = import("./items.temper");
+
+export class RulePart {
+  public isString: Boolean;
+  public data: String;
+
+  public toString(): String {
+    if (isString) {
+      return "\"${data}\"";
+    } else {
+      return data;
+    }
+  }
+}
+
+export class Rule {
+  public name: String;
+  public parts: List<RulePart>;
+  public id: Int;
+  public cons: fn(Listed<Tree>): Listed<Tree>;
+  public iparts: List<ItemPart>;
+
+  public toString(): String {
+    var build = new ListBuilder<String>();
+    build.add(name);
+    build.add("->");
+    for (var i = 0; i < parts.length; i++) {
+      build.add(parts[i].toString());
+    }
+    return build.join(" ") { (s);; s };
+  }
+
+  public toItem(at: Int): Item {
+    return new Item(name, iparts, 0, at, id, [], cons);
+  }
+}
+
+export class Rules {
+  public nullable: ListBuilder<Boolean>;
+  public rules: ListBuilder<Rule>;
+  public byName: Map<String, List<Rule>>;
+  private var built: Boolean;
+
+  public constructor(): Void {
+    nullable = new ListBuilder<String>();
+    rules = new ListBuilder<Rule>();
+    built = true;
+  }
+
+  public build(): List<String> {
+    var byNameBuilder = new MapBuilder<String, ListBuilder<Rule>>();
+    for (var j = 0; j < rules.length; j++) {
+      var rule = rules[j];
+      var ls = byNameBuilder.getOr(rule.name, new ListBuilder<Rule>());
+      ls.add(rule);
+      byNameBuilder[rule.name] = ls;
+    }
+    var ls = byNameBuilder
+      .toList()
+      .map(
+        fn(pair: Pair<String, ListBuilder<Rule>>): Pair<String, List<Rule>> {
+        return new Pair<String, List<Rule>>(pair.key, pair.value.toList());
+      }
+    );
+    byName = new Map(ls);
+    nullable = new ListBuilder<Boolean>();
+    for (var j = 0; j < rules.length; j++) {
+      nullable.add(rules[j].parts.length == 0);
+    }
+    var unk = new ListBuilder<String>();
+    var more = true;
+    while (more) {
+      more = false;
+      for (var j = 0; j < rules.length; j++) {
+        var rule = rules[j];
+        for (var i = 0; i < rule.parts.length; i++) {
+          var part = rule.parts[i];
+          if (!part.isString) {
+            do {
+              var found = byName[part.data];
+              for (var k = 0; k < found.length; k++) {
+                if (found[k].parts.length == 0 || nullable[found[k].id]) {
+                  if (!nullable[rule.id]) {
+                    nullable[rule.id] = true;
+                    more = true;
+                  }
+                }
+              }
+            } orelse unk.add(part.data);
+          }
+        }
+      }
+    }
+    built = true;
+    return unk.toList();
+  }
+
+  public add(rule: Rule): Void {
+    built = false;
+    rules.add(rule);
+  }
+
+  public toString(): String {
+    return rules.join("\n", fn(rule: Rule): String {
+      return rule.toString();
+    });
+  }
+}

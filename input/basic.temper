@@ -1,4 +1,2 @@
 
-if (x == y) {
-  return x;
-}
+var x: Int;

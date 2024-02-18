@@ -1,0 +1,152 @@
+
+
+let {...} = import("./items.temper");
+let {...} = import("./rules.temper");
+let {...} = import("./tree.temper");
+
+export class StateSet {
+  public nexts: MapBuilder<String, ListBuilder<Item>>;
+  private setv: ListBuilder<Item>;
+  private hashes: MapBuilder<Int, ListBuilder<Item>>;
+
+  public constructor() {
+    setv = new ListBuilder<Item>();
+    nexts = new MapBuilder<String, ListBuilder<Item>>();
+    hashes = new MapBuilder<Int, ListBuilder<Item>>();
+  }
+
+  public clear(): Void {
+    setv = new ListBuilder<Item>();
+  }
+  
+  public add(next: Item): Boolean {
+    var hash = next.id * next.ents.length + next.dot;
+    var got = hashes.getOr(hash, new ListBuilder<Item>());
+    var len = got.length;
+    if (len == 0) {
+      hashes[hash] = got;
+    } else {
+      for (var i = 0; i < len; i++) {
+        var cur = got.getOr(i, next);
+        if (cur.eq(next)) {
+          return false;
+        }
+      }
+    }
+    if (next.dot < next.ents.length) {
+      var ent = next.ents[next.dot];
+      var at = ent.name(); 
+      var nextv = nexts.getOr(at, new ListBuilder<Item>());
+      if (nextv.length == 0) {
+        nexts[at] = nextv;
+      }
+      if (!ent.isTest()) {
+        nextv.add(next);
+      }
+    }
+    got.add(next);
+    setv.add(next);
+    return true;
+  }
+
+  public get(i: Int): Item {
+    return setv[i];
+  }
+
+  public get length(): Int {
+    return setv.length;
+  }
+}
+
+let toTreeLambda(setv: Item): fn(): Listed<Tree> {
+  var hasTree = false;
+  var trees: Listed<Tree>;
+  return fn(): Listed<Tree> {
+    if (!hasTree) {
+      hasTree = true;
+      trees = setv.toTree();
+    }
+    return trees;
+  };
+}
+
+let tokenLambda(input: String): fn(): Listed<Tree> {
+  return fn(): List<Tree> {
+    return [new Token(input)];
+  };
+}
+
+export class StateSets {
+  public nullable: DenseBitVector;
+  public byName: Map<String, List<Rule>>;
+  public sets: ListBuilder<StateSet>;
+
+  public constructor(n: DenseBitVector, s: StateSet, b: Map<String, List<Rule>>): Void {
+    nullable = n;
+    byName = b;
+    sets = new ListBuilder<StateSet>();
+    sets.add(s);
+  }
+
+  public toString(): String {
+    var build = new ListBuilder<String>();
+    for (var i = 0; i < sets.length; i++) {
+      build.add("=== ${i.toString()} ===");
+      for (var j = 0; j < sets[i].length; j++) {
+        build.add(sets[i][j].toString());
+      }
+    }
+    return build.join("\n") { (s);; s };
+  }
+
+  private process1(i: Int, next: StateSet, input: String): Void {
+    var last = sets[i];
+    for (var j = 0; j < last.length; j++) {
+      var item = last[j];
+      if (item.dot < item.ents.length) {
+        var ent = item.ents[item.dot];
+        if (ent.isTest()) {
+          if (ent.check(input)) {
+            next.add(item.advanceWith(tokenLambda(input)));
+          }
+        } else {
+          var found = byName[ent.name()];
+          for (var k = 0; k < found.length; k++) {
+            var itemFound = found[k].toItem(i);
+            last.add(itemFound);
+            if (nullable[itemFound.id]) {
+              var magic = item.advance();
+              last.add(magic);
+            }
+          }
+        }
+      } else {
+        var tree = toTreeLambda(item);
+        var olds = sets[item.start].nexts.getOr(item.name, new ListBuilder<Item>());
+        for (var k = 0; k < olds.length; k++) {
+          last.add(olds[k].advanceWith(tree));
+        }
+      }
+    }
+  }
+
+  public chars(input: List<String>): Void {
+    for (var i = 0; i < input.length; i++) {
+      var next = new StateSet();
+      process1(sets.length-1, next, input[i]);
+      if (next.length == 0) {
+        console.log("Error at char#${i.toString()} (char: ${input[i]})");
+        return;
+      }
+      sets[sets.length-1].clear();
+      sets.add(next);
+    }
+    var next = new StateSet();
+    var i = sets.length-1;
+    process1(i, next, "");
+  }
+
+  public string(input: String): Void {
+    chars(input.split(""));
+  }
+}
