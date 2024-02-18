@@ -20,7 +20,8 @@ export let larkish(): Earley {
     .seq().rule("Defines").rule("Ignore").rule("Define").expand()
     .seq().rule("Define").expand();
   ret.name("Define")
-    .seq().rule("Name").rule("Ignore").rule("CharColon").rule("Ignore").rule("Pattern");
+    .seq().rule("DefineName").rule("Ignore").rule("CharColon").rule("Ignore").rule("Pattern")
+    .seq().rule("Name").rule("Ignore").rule("CharColon").rule("Ignore").rule("Pattern").rule("Ignore").rule("AliasArrow").rule("Ignore").rule("Name").alias("AliasDefine");
   ret.name("Pattern")
     .seq().rule("Select").expand();
   ret.name("Select")
@@ -37,14 +38,13 @@ export let larkish(): Earley {
     .seq().rule("Single").rule("Ignore").rule("CharPlus").alias("OneOrMore")
     .seq().rule("Single").rule("Ignore").rule("CharTimes").alias("ZeroOrMore")
     .seq().rule("Single").rule("Ignore").rule("CharQuestion").alias("ZeroOrOne")
-    .seq().rule("Postfix").rule("Ignore").rule("ExpandSymbol").alias("ToExpand")
-    .seq().rule("Postfix").rule("Ignore").rule("CharBang").alias("ToIgnore")
+    .seq().rule("Single").rule("Ignore").rule("CharCaret").alias("ToExpand")
+    .seq().rule("Single").rule("Ignore").rule("CharBang").alias("ToIgnore")
     .seq().rule("Single").expand();
   ret.name("Single")
     .seq().rule("CharOpenParen").rule("Ignore").rule("Pattern").rule("Ignore").rule("CharCloseParen").expand()
     .seq().rule("Name").alias("Rule")
     .seq().rule("CharQuotes").rule("StringBody").rule("CharQuotes").alias("String")
-    .seq().rule("CharHashtag").char(ascii).rule("RangeSymbol").rule("CharHashtag").char(ascii).alias("CharRange")
     .seq().rule("CharOpenSquare").rule("StringBody").rule("CharCloseSquare").alias("CharSet")
     .seq().rule("CharHashtag").char(ascii).alias("CharSet");
   ret.name("StringBody")
@@ -54,11 +54,15 @@ export let larkish(): Earley {
     .seq().char(stringBody).expand();
   ret.name("StringChar")
     .seq().char(stringBody)
-    .seq().rule("CharBackslach").rule("StringEscape").expand();
+    .seq().rule("CharBackslash").rule("StringEscape").expand();
   ret.name("StringEscape")
     .seq().char("\"\'rtn")
     .seq().char("x").char(digits).char(digits);
+  ret.name("DefineName")
+    .seq().rule("Name").rule("Ignore").rule("CharQuestion").alias("ExpandName")
+    .seq().rule("Name").alias("Name");
   ret.name("Name")
+    .seq().rule("Name").char(".").rule("Letters").token()
     .seq().rule("Letters").token();
   ret.name("Letters")
     .seq().rule("Letters").char(alnum).expand()
@@ -69,8 +73,8 @@ export let larkish(): Earley {
   ret.name("IgnoreChars")
     .seq().rule("IgnoreChars").char(" \t\r\n")
     .seq().char(" \t\r\n");
-  ret.name("RangeSymbol").seq().str("..").ignore();
-  ret.name("ExpandSymbol").seq().str("...").ignore();
+  ret.name("AliasArrow").seq().str("->").ignore();
+  ret.name("CharCaret").seq().str("^").ignore();
   ret.name("CharQuotes").seq().char("\"").ignore();
   ret.name("CharColon").seq().char(":").ignore();
   ret.name("CharPipe").seq().char("|").ignore();
@@ -99,7 +103,6 @@ export let toEarley(whole: Tree): Earley {
   }
 
   let translateNode(node: Node, cb: fn(String): Void): Void {
-    // console.log(node.toString());
     if (node.type == "Grammar") {
       node.forEach { (tree);;
         translate(tree) { (name);; };
@@ -107,11 +110,31 @@ export let toEarley(whole: Tree): Earley {
       cb("");
       return;
     } 
+    if (node.type == "AliasDefine") {
+      var alias = node.items[2].as<Token>().value;
+      var name = node.items[0].as<Token>().value;
+      term = name.codePoints.read() <= "Z".codePoints.read();
+      translate(node.items[1]) { (item);;
+        earley.name(name).seq().rule(item);
+        if (term) {
+          earley.token();
+        } else {
+          earley.alias(alias);
+        }
+        cb("");
+      };
+      return;
+    } 
     if (node.type == "Define") {
-      base = node.items[0].as<Token>().value;
+      var name = node.items[0].as<Node>();
+      var base = name.items[0].as<Token>().value;
+      var expand = name.type == "ExpandName";
       term = base.codePoints.read() <= "Z".codePoints.read();
-      translate(node.items[1]) { (name);;
-        earley.name(base).seq().rule(name);
+      translate(node.items[1]) { (item);;
+        earley.name(base).seq().rule(item);
+        if (expand) {
+          earley.expand();
+        }
         if (term) {
           earley.token();
         }
@@ -196,7 +219,7 @@ export let toEarley(whole: Tree): Earley {
     if (node.type == "ToExpand") {
       var name = genName();
       translate(node.items[0]) { (item);;
-        earley.name(name).seq().rule(item).expandTwice();
+        earley.name(name).seq().rule(item).expandMore();
         cb(name);
       };
       return;

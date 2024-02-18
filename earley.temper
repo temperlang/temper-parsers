@@ -247,6 +247,7 @@ class Rule {
 class Rules {
   public nullable: ListBuilder<Boolean>;
   public rules: ListBuilder<Rule>;
+  public byName: Map<String, List<Rule>>;
   private var built: Boolean;
 
   public constructor(): Void {
@@ -255,11 +256,27 @@ class Rules {
     built = true;
   }
 
-  public build(): Void {
+  public build(): List<String> {
+    var byNameBuilder = new MapBuilder<String, ListBuilder<Rule>>();
+    for (var j = 0; j < rules.length; j++) {
+      var rule = rules[j];
+      var ls = byNameBuilder[rule.name] orelse new ListBuilder<Rule>();
+      ls.add(rule);
+      byNameBuilder[rule.name] = ls;
+    }
+    var ls = byNameBuilder
+      .toList()
+      .map(
+        fn(pair: Pair<String, ListBuilder<Rule>>): Pair<String, List<Rule>> {
+        return new Pair<String, List<Rule>>(pair.key, pair.value.toList());
+      }
+    );
+    byName = new Map(ls);
     nullable = new ListBuilder<Boolean>();
     for (var j = 0; j < rules.length; j++) {
       nullable.add(rules[j].parts.length == 0);
     }
+    var unk = new ListBuilder<String>();
     var more = true;
     while (more) {
       more = false;
@@ -268,20 +285,23 @@ class Rules {
         for (var i = 0; i < rule.parts.length; i++) {
           var part = rule.parts[i];
           if (!part.isString) {
-            var found = find(part.data);
-            for (var k = 0; k < found.length; k++) {
-              if (found[k].parts.length == 0 || nullable[found[k].id]) {
-                if (!nullable[rule.id]) {
-                  nullable[rule.id] = true;
-                  more = true;
+            do {
+              var found = byName[part.data];
+              for (var k = 0; k < found.length; k++) {
+                if (found[k].parts.length == 0 || nullable[found[k].id]) {
+                  if (!nullable[rule.id]) {
+                    nullable[rule.id] = true;
+                    more = true;
+                  }
                 }
               }
-            }
+            } orelse unk.add(part.data);
           }
         }
       }
     }
     built = true;
+    return unk.toList();
   }
 
   public add(rule: Rule): Void {
@@ -296,13 +316,14 @@ class Rules {
   }
 
   public find(name: String): List<Rule> {
-    var ret = new ListBuilder<Rule>();
-    for (var i = 0; i < rules.length; i++) {
-      if (rules[i].name == name) {
-        ret.add(rules[i]);
-      }
-    }
-    return ret.toList();
+    return byName[name];
+    // var ret = new ListBuilder<Rule>();
+    // for (var i = 0; i < rules.length; i++) {
+    //   if (rules[i].name == name) {
+    //     ret.add(rules[i]);
+    //   }
+    // }
+    // return ret.toList();
   }
 }
 
@@ -360,17 +381,17 @@ export class Earley {
     return this;
   }
 
-  public expandTwice(): Earley {
+  public expandMore(): Earley {
     consBy[consBy.length-1] = fn(items: List<Tree>): List<Tree> {
       var ret = new ListBuilder<Tree>();
       for (var i = 0; i < items.length; i++) {
-        if (items[i] is Node) {
-          ret.addAll(items[i].as<Node>().items);
-        } else {
-          ret.add(items[i]);
+        match (items[i]) {
+          is Node -> ret.addAll(items[i].as<Node>().items);
+          else -> ret.add(items[i]);
         }
       }
-    };
+      return ret.toList();
+    }
     return this;
   }
 
@@ -379,14 +400,14 @@ export class Earley {
       var ret = new ListBuilder<Tree>();
       let more(items: List<Tree>): Void {
         for (var i = 0; i < items.length; i++) {
-          if (items[i] is Node) {
-            more(items[i].as<Node>().items);
-          } else {
-            ret.add(items[i]);
+          match (items[i]) {
+            is Node -> more(items[i].as<Node>().items);
+            else -> ret.add(items[i]);
           }
         }
       }
       more(items);
+      return ret.toList();
     };
     return this;
   }
@@ -515,7 +536,10 @@ export class Earley {
 
   public build(): Rules {
     name("");
-    rules.build();
+    var got = rules.build();
+    for (var i = 0; i < got.length; i++) {
+      console.log("undefined: ${got[i]}");
+    }
     return rules;
   }
 
