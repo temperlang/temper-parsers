@@ -18,8 +18,8 @@ export class StateSet {
   private setv: ListBuilder<Item>;
   private hashes: MapBuilder<Int, Item | Null>;
 
-  public constructor(conf: StateConfig) {
-    setv = new ListBuilder<Item>();
+  public constructor(conf: StateConfig, v: ListBuilder<Item>) {
+    setv = v;
     nexts = new MapBuilder<String, ListBuilder<Item>>();
     hashes = new MapBuilder<Int, ListBuilder<Item>>();
     config = conf;
@@ -132,25 +132,24 @@ export class StateSets {
     var split = str.split("");
     var len = split.length;
     for (var i = 0; i < len; i++) {
-      var next = new StateSet(config);
+      var next = new StateSet(config, new ListBuilder<Item>());
       process1(sets.length-1, next, new Token(split[i]));
       if (next.length == 0) {
         console.log("Error at char#${i.toString()} (char: ${split[i]})");
         return;
       }
+      sets[sets.length-1].clear();
       sets.add(next);
     }
-    var next = new StateSet(config);
+    var next = new StateSet(config, new ListBuilder<Item>());
     process1(sets.length-1, next, new Token(""));
   }
 
   public token(start: Int, split: List<String>): Int {
     var firstSet = sets[0];
     var len = split.length;
-    sets = new ListBuilder<StateSet>();
-    sets.add(firstSet);
     for (var cur = start; cur < len; cur++) {
-      var next = new StateSet(firstSet.config);
+      var next = new StateSet(firstSet.config, new ListBuilder<Item>());
       process1(sets.length-1, next, new Token(split[cur]));
       if (next.length == 0) {
         return cur;

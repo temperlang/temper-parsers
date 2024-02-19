@@ -30,7 +30,7 @@ export class EarleyChars {
       rules.rules.toList()
     };
     var config = new StateConfig(numIds, maxDot);
-    var firstSet = new StateSet(config);
+    var firstSet = new StateSet(config, new ListBuilder<Item>());
     for (var i = 0; i < found.length; i++) {
       firstSet.add(found[i].toItem(0));
     }
@@ -161,12 +161,18 @@ export class EarleyChars {
   }
 
   public lex(src: String): Listed<Token> {
-    var got = makeStateSets("__token__");
+    var config = new StateConfig(numIds, maxDot);
+    var rules = build();
+    var tokenRules = rules.byName["__token__"].map(fn(rule: Rule): Item {
+      return rule.toItem(0);
+    });
     var split = src.split("");
     var ret = new ListBuilder<Token>();
     var start = 0;
     while (start < split.length) {
-      var end = got.token(start, split);
+      var firstSet = new StateSet(config, tokenRules.toListBuilder());
+      var sets = new StateSets(rules.nullable, firstSet, rules.byName, cons);
+      var end = sets.token(start, split);
       if (end == start) {
         console.log("error: cannot lex: \"${split[start]}\"");
         return ret;
@@ -176,7 +182,6 @@ export class EarleyChars {
         j.add(split[start++]);
       }
       var data = j.join("") { (s);; s };
-      console.log(data);
       ret.add(new Token(data));
     }
     return ret;

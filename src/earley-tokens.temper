@@ -30,7 +30,7 @@ export class EarleyTokens {
       rules.rules.toList()
     };
     var config = new StateConfig(numIds, maxDot);
-    var firstSet = new StateSet(config);
+    var firstSet = new StateSet(config, new ListBuilder<Item>());
     for (var i = 0; i < found.length; i++) {
       firstSet.add(found[i].toItem(0));
     }

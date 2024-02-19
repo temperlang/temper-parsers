@@ -24,6 +24,21 @@ class Lexer {
 
   public defCharSet(name: String, charSet: String): String {
     earley.name(name).seq().char(charSet);
+    earley.name("__token__").seq().rule(name);
+    return name;
+  }
+
+  public fromString(str: String): String {
+    var name = genName();
+    earley.name(name).seq().str(str);
+    earley.name("__token__").seq().rule(name);
+    return name;
+  }
+
+  public fromCharSet(str: String): String {
+    var name = genName();
+    earley.name(name).seq().char(str);
+    earley.name("__token__").seq().rule(name);
     return name;
   }
 
@@ -73,15 +88,17 @@ class Lexer {
       return name;
     }
     if (node.type == "CharSet") {
-      earley.name(name).seq().str(node.items[0].as<Token>().value);
+      earley.name(name).seq().char(node.items[0].as<Token>().value);
       return name;
     }
     if (node.type == "String") {
       earley.name(name).seq().str(node.items[0].as<Token>().value);
+      earley.name("__token__").seq().rule(name);
       return name;
     }
     if (node.type == "TokenString") {
       earley.name(name).seq().str(node.items[0].as<Token>().value);
+      earley.name("__token__").seq().rule(name);
       return name;
     }
     console.log("unhandled: /${node.type}/ -> ${node.toString()}");
@@ -229,17 +246,17 @@ export class Grammar {
       return;
     } 
     if (node.type == "CharSet") {
-      earley.name(name).seq().token(lexer.from(node)).expand();
+      earley.name(name).seq().token(lexer.fromCharSet(node.items[0].as<Token>().value)).expand();
       cb(name);
       return;
     }
     if (node.type == "String") {
-      earley.name(name).seq().token(lexer.from(node)).ignore();
+      earley.name(name).seq().token(lexer.fromString(node.items[0].as<Token>().value)).ignore();
       cb(name);
       return;
     }
     if (node.type == "TokenString") {
-      earley.name(name).seq().token(lexer.from(node)).expand();
+      earley.name(name).seq().token(lexer.fromString(node.items[0].as<Token>().value)).expand();
       cb(name);
       return;
     }
