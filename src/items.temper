@@ -1,10 +1,10 @@
 
-let {...} = import("./tree.temper");
+let {...} = import("./tree");
 
 export interface ItemPart {
   public isTest(): Boolean;
   public name(): String;
-  public check(c: Int): Boolean;
+  public check(t: Token): Boolean;
   public toString(): String;
 }
 
@@ -29,15 +29,11 @@ export class ItemPartItem extends ItemPart {
 }
 
 export class ItemPartSet extends ItemPart {
-  public vals: List<String>;
+  private vals: Listed<Token>;
   private bits: DenseBitVector;
 
-  public constructor(args: List<String>): Void {
+  public constructor(args: List<Token>): Void {
     vals = args;
-    bits = new DenseBitVector(128);
-    for (var i = 0; i < args.length; i++) {
-      bits[args[i].codePoints.read()] = true;
-    }
   }
   
   public isTest(): Boolean {
@@ -45,27 +41,79 @@ export class ItemPartSet extends ItemPart {
   }
 
   public name(): String {
-    return "FAKE ${vals.join(" | ") { (s);; s }}";
+    return "";
   }
 
-  public check(c: Int): Boolean {
-    return bits[c];
+  public check(t: Token): Boolean {
+    var nvals = vals.length;
+    for (var i = 0; i < nvals; i++) {
+      var cur = vals[i];
+      if (cur.type == t.type) {
+        return true;
+      }
+    }
+    return false;
   }
 
   public toString(): String {
-    var joined = vals.join("|") { (s);; s };
+    var joined = vals.join("|") { (s);; s.toString() };
     return "/${joined}/";
   }
 }
 
-export class Item {
+var noTrees: List<Tree> = [];
+
+export interface Item {
   public name: String;
   public ents: List<ItemPart>;
   public dot: Int;
   public start: Int;
   public id: Int;
-  public last: List<Item>;
-  public trees: Listed<Tree>;
+
+  public addTreesTo(b: ListBuilder<Tree>): Void;
+
+  public toTree(cons: Listed<fn(Listed<Tree>): Listed<Tree>>): Listed<Tree>;
+  
+  public advanceWithSingle(got: Tree): Item;
+  public advanceWith(got: Listed<Tree>): Item;
+  public advance(): Item;
+} 
+
+export class FirstItem extends Item {
+  public name: String;
+  public ents: List<ItemPart>;
+  public dot: Int;
+  public start: Int;
+  public id: Int;
+
+  public addTreesTo(b: ListBuilder<Tree>): Void {
+  }
+  
+  public toTree(cons: Listed<fn(Listed<Tree>): Listed<Tree>>): Listed<Tree> {
+    return noTrees;
+  }
+
+  public advanceWithSingle(got: Tree): Item {
+    return new RestItem(name, ents, dot + 1, start, id, this, [got]);
+  }
+
+  public advanceWith(got: Listed<Tree>): Item {
+    return new RestItem(name, ents, dot + 1, start, id, this, got);
+  }
+
+  public advance(): Item {
+    return new RestItem(name, ents, dot + 1, start, id, this, noTrees);
+  }
+}
+
+export class RestItem extends Item {
+  public name: String;
+  public ents: List<ItemPart>;
+  public dot: Int;
+  public start: Int;
+  public id: Int;
+  private last: Item;
+  private trees: Listed<Tree>;
 
   public toString(): String {
     var build = new ListBuilder<String>();
@@ -82,35 +130,30 @@ export class Item {
     return build.join(" ") { (s);; s };
   }
 
+  public advanceWithSingle(got: Tree): Item {
+    return new RestItem(name, ents, dot + 1, start, id, this, [got]);
+  }
+
   public advanceWith(got: Listed<Tree>): Item {
-    return new Item(name, ents, dot + 1, start, id, [this], got);
+    return new RestItem(name, ents, dot + 1, start, id, this, got);
   }
 
   public advance(): Item {
-    return new Item(name, ents, dot + 1, start, id, [this], []);
+    return new RestItem(name, ents, dot + 1, start, id, this, noTrees);
   }
 
   public eq(other: Item): Boolean {
     return id == other.id && start == other.start && dot == other.dot; 
   }
 
+  public addTreesTo(b: ListBuilder<Tree>): Void {
+    last.addTreesTo(b);
+    b.addAll(trees);
+  }
+
   public toTree(cons: Listed<fn(Listed<Tree>): Listed<Tree>>): Listed<Tree> {
-    var realTrees = new ListBuilder<Tree>();
-    let rec(item: Item): Void {
-      if (item.last.length != 0) {
-        rec(item.last[0]);
-      }
-      realTrees.addAll(item.trees);
-    }
-    rec(this);
-    for (var i = dot; i < ents.length; i++) {
-      var ent = ents[i];
-      if (ent.isTest()) {
-        realTrees.add(new MissingToken());
-      } else {
-        realTrees.add(new MissingTree(ent.name()));
-      }
-    }
-    return cons[id](realTrees);
+    var b = new ListBuilder<Tree>();
+    addTreesTo(b);
+    return b;
   }
 }
