@@ -1,23 +1,28 @@
 
 let {...} = import("./earley-tokens");
+let {...} = import("./earley-chars");
 let {...} = import("./tree");
 let {...} = import("./ascii");
-
-class LexerTable {
-  public next: Map<String, LexerTable>;
-  public ended: Token;
-}
+let {...} = import("std/regex");
 
 class Lexer {
   private n: Int;
-  private table: LexerTable;
+  private earley: EarleyChars;
 
   public constructor(): Void {
     n = 0;
+    earley = new EarleyChars();
+    earley.name("__lexer__").seq().rule("__lexer__").rule("__token__");
+    earley.name("__lexer__").seq();
   }
 
-  public lex(s: String): Listed<Token> {
+  public lex(src: String): Listed<Token> {
     var ret = new ListBuilder<Token>();
+    var got = earley.first("__lexer__", src).as<Node>();
+    while (got.items.length == 2) {
+      ret.add(got.items[1].as<Token>());
+      got = got.items[0].as<Node>();
+    }
     return ret;
   }
 
@@ -26,32 +31,70 @@ class Lexer {
     return "#${n.toString()}";
   }
 
-  public def(node: Node): String | Bubble {
+  public from(node: Node): String | Bubble {
     var name = genName();
-    if (node.type == "AliasDefine") {
-    }
-    if (node.type == "Define") {
-    }
     if (node.type == "Select") {
+      var rules = new ListBuilder<String>();
+      node.forEach { (it);;
+        var got = from(it.as<Node>());
+        earley.name(name).rule(got);
+      };
+      return name;
     }
     if (node.type == "Sequence") {
+      var rules = new ListBuilder<String>();
+      node.forEach { (it);;
+        rules.add(from(it.as<Node>()));
+      };
+      var chain = earley.name(name).seq();
+      for (var i = 0; i < rules.length; i++) {
+        chain = chain.rule(rules[i]);
+      }
+      return name;
     }
     if (node.type == "OneOrMore") {
+      var got = from(node.items[0].as<Node>());
+      earley.name(name).seq().rule(name).rule(got);
+      earley.name(name).seq().rule(name);
+      return name;
     }
     if (node.type == "ZeroOrMore") {
+      var got = from(node.items[0].as<Node>());
+      earley.name(name).seq().rule(name).rule(got);
+      earley.name(name).seq();
+      return name;
     }
     if (node.type == "ZeroOrOne") {
+      var got = from(node.items[0].as<Node>());
+      earley.name(name).seq().rule(got);
+      earley.name(name).seq();
+      return name;
     }
     if (node.type == "Rule") {
+      earley.name(name).seq().rule(node.items[0].as<Token>().value);
+      return name;
     }
     if (node.type == "CharSet") {
+      earley.name(name).seq().str(node.items[0].as<Token>().value);
+      return name;
     }
     if (node.type == "String") {
+      earley.name(name).seq().str(node.items[0].as<Token>().value);
+      return name;
     }
     if (node.type == "TokenString") {
+      earley.name(name).seq().str(node.items[0].as<Token>().value);
+      return name;
     }
     console.log("unhandled: /${node.type}/ -> ${node.toString()}");
     return bubble();
+  }
+
+  public def(name: String, node: Node): String | Bubble {
+    var got = from(node);
+    earley.name(name).seq().rule(got);
+    earley.name("__token__").seq().rule(got).token(name);
+    return name;
   }
 }
 
@@ -59,20 +102,22 @@ export class Grammar {
   public earley: EarleyTokens;
   public lexer: Lexer;
   private term: Boolean;
-  private base: String;
   private n: Int;
 
   public constructor(): Void {
     earley = new EarleyTokens();
     lexer = new Lexer();
-    base = "";
     term = false;
     n = 0;
   }
 
+  private lex(str: String): Listed<Token> {
+    return lexer.lex(str);
+  }
+
   private genName(): String {
     n += 1;
-    return "${base}#${n.toString()}";
+    return "#${n.toString()}";
   }
 
   private translateNode(node: Node, cb: fn(String): Void): Void {
@@ -89,8 +134,7 @@ export class Grammar {
       var alias = node.items[2].as<Token>().value;
       var name = node.items[0].as<Token>().value;
       if (name.codePoints.read() <= "Z".codePoints.read()) {
-        var got = lexer.def(node);
-        earley.name(name).seq().token(got).alias(alias);
+        earley.name(name).seq().token(lexer.def(name, node.items[1].as<Node>())).alias(alias);
         cb("");
       } else {
         self.translate(node.items[1]) { (item);;
@@ -101,14 +145,18 @@ export class Grammar {
       return;
     } 
     if (node.type == "Define") {
-      var name = node.items[0].as<Node>();
-      var base = name.items[0].as<Token>().value;
-      var expand = name.type == "ExpandName";
-      if (base.codePoints.read() <= "Z".codePoints.read()) {
-
+      var item0 = node.items[0].as<Node>();
+      var name = item0.items[0].as<Token>().value;
+      var expand = item0.type == "ExpandName";
+      if (name.codePoints.read() <= "Z".codePoints.read()) {
+        earley.name(name).seq().token(lexer.def(name, node.items[1].as<Node>()));
+        if (expand) {
+          earley.expand();
+        }
+        cb("");
       } else {
         self.translate(node.items[1]) { (item);;
-          earley.name(base).seq().rule(item);
+          earley.name(name).seq().rule(item);
           if (expand) {
             earley.expand();
           }
@@ -186,17 +234,17 @@ export class Grammar {
       return;
     } 
     if (node.type == "CharSet") {
-      earley.name(name).seq().token(lexer.def(node)).expand();
+      earley.name(name).seq().token(lexer.from(node)).expand();
       cb(name);
       return;
     }
     if (node.type == "String") {
-      earley.name(name).seq().token(lexer.def(node)).ignore();
+      earley.name(name).seq().token(lexer.from(node)).ignore();
       cb(name);
       return;
     }
     if (node.type == "TokenString") {
-      earley.name(name).seq().token(lexer.def(node)).expand();
+      earley.name(name).seq().token(lexer.from(node)).expand();
       cb(name);
       return;
     }
@@ -209,6 +257,7 @@ export class Grammar {
       is Node -> translateNode(tree.as<Node>(), cb);
       else -> do {
         console.log("unhandled: ${tree.toString()}");
+        bubble();
       };
     }
   }

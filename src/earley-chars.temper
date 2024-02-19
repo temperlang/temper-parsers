@@ -88,7 +88,7 @@ export class EarleyChars {
     return this;
   }
 
-  public token(): EarleyChars {
+  public token(type: String): EarleyChars {
     let walk(trees: Listed<Tree>): String {
       return trees.join("", fn(t: Tree): String {
         match (t) {
@@ -99,8 +99,9 @@ export class EarleyChars {
       });
     }
     cons[cons.length-1] = fn(items: Listed<Tree>): Listed<Tree> {
-      var t: Tree = new Token("*", walk(items));
-      return [t];
+      var str = walk(items);
+      var tree: Tree = new Token(type, str);
+      return [tree];
     };
     return this;
   }
@@ -156,7 +157,7 @@ export class EarleyChars {
         ret.addAll(cur.toTree(cons));
       }
     }
-    return ret.getOr(0, new Token("?", "no match"));
+    return ret[0];
   }
 
   public all(start: String, src: String): Listed<Tree> {

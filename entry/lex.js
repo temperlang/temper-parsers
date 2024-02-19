@@ -9,5 +9,7 @@ const parser = new Parser(String(readFileSync(argv[2])));
 for (let i = 3; i < argv.length; i++) {
     const data = parser.lex(String(readFileSync(argv[i])));
     
-    console.log(format(data));
+    for (const {type, value} in data) {
+        console.log(type, value);
+    }
 }

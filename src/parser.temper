@@ -11,7 +11,8 @@ export class Parser {
 
   public constructor(src: String): Void {
     grammar = new Grammar();
-    grammar.addTree(larky.first("Grammar", src));
+    var tree = larky.first("Grammar", src);
+    grammar.addTree(tree);
   }
 
   public lex(str: String): Listed<Token> {

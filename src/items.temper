@@ -86,11 +86,10 @@ export class FirstItem extends Item {
   public start: Int;
   public id: Int;
 
-  public addTreesTo(b: ListBuilder<Tree>): Void {
-  }
+  public addTreesTo(b: ListBuilder<Tree>): Void {}
   
   public toTree(cons: Listed<fn(Listed<Tree>): Listed<Tree>>): Listed<Tree> {
-    return noTrees;
+    return cons[id](noTrees);
   }
 
   public advanceWithSingle(got: Tree): Item {
@@ -154,6 +153,6 @@ export class RestItem extends Item {
   public toTree(cons: Listed<fn(Listed<Tree>): Listed<Tree>>): Listed<Tree> {
     var b = new ListBuilder<Tree>();
     addTreesTo(b);
-    return b;
+    return cons[id](b);
   }
 }

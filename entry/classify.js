@@ -9,6 +9,5 @@ const parser = new Parser(String(readFileSync(argv[2])));
 for (let i = 3; i < argv.length; i++) {
     const trees = parser.classify(argv[i]);
 
-    
     console.log(String(trees));
 }

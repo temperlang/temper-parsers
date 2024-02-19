@@ -121,7 +121,7 @@ export class EarleyTokens {
         ret.addAll(cur.toTree(cons));
       }
     }
-    return ret.toList();
+    return ret;
   }
 
   public first(start: String, src: String): Tree {
