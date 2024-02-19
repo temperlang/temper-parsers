@@ -14,11 +14,7 @@ let makeStateSetsCons(rules: Rules, start: String, cons: ListBuilder<fn(Listed<T
   for (var i = 0; i < found.length; i++) {
     firstSet.add(found[i].toItem(0));
   }
-  var nullable = new DenseBitVector(rules.nullable.length);
-  for (var i = 0; i < rules.nullable.length; i++) {
-    nullable[i] = rules.nullable[i];
-  }
-  return new StateSets(nullable, firstSet, rules.byName, cons);
+  return new StateSets(rules.nullable, firstSet, rules.byName, cons);
 }
 
 export class Earley {
@@ -140,15 +136,6 @@ export class Earley {
     }
   }
 
-  public parse(src: String): Void {
-    var sets = makeStateSets(build(), "");
-    sets.string(src);
-    var last = sets.sets[sets.sets.length-1];
-    for (var i = 0; i < last.length; i++) {
-      console.log(last[i].toString());
-    }
-  }
-
   public trees(start: String, src: String): Listed<Tree> {
     var sets = makeStateSets(build(), start);
     sets.string(src);
@@ -201,7 +188,8 @@ export class Earley {
     for (var i = 0; i < last.length; i++) {
       var cur = last[i];
       if (cur.start == 0 && cur.dot == cur.ents.length) {
-        ret.addAll(cur.toTree(cons));
+        var trees = cur.toTree(cons);
+        ret.add(new Node(cur.name, trees));
       }
     }
     return ret.toList();

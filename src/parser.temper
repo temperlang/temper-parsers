@@ -23,7 +23,28 @@ export class Parser {
     return earley.trees("__start__", str);
   }
 
-  public findAll(str: String): Listed<Tree> {
-    return earley.all("__start__", str);
+  public classify(str: String): Node | Null {
+    var hashtagCodePoint = "#".codePoints.read();
+    var trees = earley.allTrees(str);
+    var n = -1;
+    var best : Node | Null = null;
+    for (var i = 0; i < trees.length; i++) {
+      var node = trees[i].as<Node>();
+      if (node.type.codePoints.read() != hashtagCodePoint && node.items.length == 1) {
+        var item = node.items[0];
+        match (item) {
+          is Node -> do {
+            var inode = item.as<Node>();
+            var s = inode.toString();
+            if (n < 0 || s.codePoints.length < n) {
+              n = s.codePoints.length;
+              best = inode;
+            }
+          };
+          else -> do {};
+        }
+    }
+    }
+    return best;
   }
 }

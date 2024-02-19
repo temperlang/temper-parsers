@@ -103,6 +103,14 @@ export class Item {
       realTrees.addAll(item.trees);
     }
     rec(this);
-    return cons[id](realTrees.toList());
+    for (var i = dot; i < ents.length; i++) {
+      var ent = ents[i];
+      if (ent.isTest()) {
+        realTrees.add(new MissingToken());
+      } else {
+        realTrees.add(new MissingTree(ent.name()));
+      }
+    }
+    return cons[id](realTrees);
   }
 }

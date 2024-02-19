@@ -1,21 +1,23 @@
 
-start: stmt* expr?
+start?: program
 
-block_body: stmt* expr?
+program: stmt* (stmt | expr)?
 
-stmt?: semi_stmt ";" | semi_opt_stmt ";"?
+block_body: stmt* (stmt | expr)?
 
-semi_opt_stmt: func_def | for_stmt | while_stmt | if_stmt | class_def | interface_def | match_stmt
+stmt: var_decl | func_decl | expr_stmt | return_stmt | func_def | for_stmt | while_stmt | if_stmt | class_def | interface_def | match_stmt
+
+var_decl?: var_decl_no_semi ";"
+expr_stmt: expr ";"
+return_stmt: return_expr ";"
 
 do_stmt?: do_expr
 if_stmt?: if_expr
 
-semi_stmt?: var_decl | func_decl | expr | returnStmt
+for_stmt: "for" "(" (var_decl_no_semi | expr) ";" expr_opt ";" expr_opt ")" "{" block_body "}"
 
-for_stmt: "for" "(" for_stmt_decl? ";" for_stmt_check? ";" for_stmt_next? ")" "{" block_body "}"
-for_stmt_decl: var_decl | expr
-for_stmt_check: expr
-for_stmt_next: expr
+expr_opt: ()
+expr_opt?: expr
 
 while_stmt: "while" "(" expr ")" "{" block_body "}"
 
@@ -24,22 +26,62 @@ match_cases: match_case+
 match_case: "is" type "->" stmt -> match_on_type
 match_case: expr "->" stmt -> match_on_value
 
-returnStmt: "return" expr?
+var_decl_class: var_class -> var_class
+var_decl_no_semi: var_decl_class ident -> var_decl
+var_decl_no_semi: var_decl_class ident ":" type -> typed_var_decl
+var_decl_no_semi: var_decl_class (ident | destructure | destructure_ellipsis) "=" expr? -> var_def
+var_decl_no_semi: var_decl_class ident ":" type "=" expr? -> typed_var_def
+var_decl_no_semi: var_decl_class ident "=" type? -> type_alias
 
-var_decl: ("export"! | "public"! | "private"! | "static"! | "var"!)+ ident -> var_decl
-var_decl: ("export"! | "public"! | "private"! | "static"! | "var"!)+ ident ":" type -> typed_var_decl
-var_decl: ("export"! | "public"! | "private"! | "static"! | "var"! | "let"! | "const"!)+ (ident | destructure | destructure_ellipsis) "=" expr? -> var_def
-var_decl: ("export"! | "public"! | "private"! | "static"! | "var"! | "let"! | "const"!)+ ident ":" type "=" expr? -> typed_var_def
-var_decl: ("export"! | "public"! | "private"! | "let"! | "const"!)+ ident "=" type? -> type_alias
-
-destructure_ellipsis: "{" "..." "}"
 destructure: "{" (ident ",")* ident? "}"
+destructure_ellipsis: "{" "..." "}"
 
-class_def: ("export"! | "public"! | "private"!)? "class" ident type_params? type_extends? "{" block_body "}"
-interface_def: ("export"! | "public"! | "private"!)? "interface" ident type_params? type_extends? "{" block_body "}"
+class_def: class_class "class" ident type_params? type_extends? "{" block_body "}"
+interface_def: class_class "interface" ident type_params? type_extends? "{" block_body "}"
 
-func_decl: ("export"! | "public"! | "private"! | "static"! | "var"! | "let"! | "const"!)+ ident type_params? func_type
-func_def: ("export"! | "public"! | "private"! | "static"! | "var"! | "let"! | "const"!)+ ("get"! | "set"!)? ident type_params? func_type "{" block_body "}"
+func_decl_class: var_class -> func_class
+func_decl: func_decl_class ident type_params? func_type ";"
+func_decl: func_decl_class "get" ident type_params? func_type ";" -> get_decl
+func_decl: func_decl_class "set" ident type_params? func_type ";" -> set_decl
+func_def: func_decl_class ident type_params? func_type "{" block_body "}"
+func_def: func_decl_class "get" ident type_params? func_type "{" block_body "}" -> get_def
+func_def: func_decl_class "set" ident type_params? func_type "{" block_body "}"  -> set_def
+
+class_class: class_class
+var_class: var_class
+
+class_class: "export" -> export
+class_class: "public" -> public
+class_class: "private" -> private
+
+func_class: "static" "private" "var" -> public_static_var
+func_class: "static" "public" "var" -> private_static_var
+func_class: "static" "private" "let" -> public_static_let
+func_class: "static" "public" "let" -> private_static_let
+func_class: "static" "private" "const" -> public_static_const
+func_class: "static" "public" "const" -> private_static_const
+func_class: "private"? "static" "var" -> private_static_var
+func_class: "public" "static" "var" -> public_static_var
+func_class: "private"? "static" "let" -> private_static_let
+func_class: "public" "static" "let" -> public_static_let
+func_class: "private"? "static" "const" -> private_static_const
+func_class: "public" "static" "const" -> public_static_const
+func_class?: var_class
+
+var_class: "private" -> private
+var_class: "public" -> public
+var_class: "var" -> var
+var_class: "let" -> let
+var_class: "const" -> const
+var_class: "private" "var" -> private_var
+var_class: "public" "var" -> public_var
+var_class: "export" "var" -> export_var
+var_class: "private" "let" -> private_let
+var_class: "public" "let" -> public_let
+var_class: "export" "let" -> export_let
+var_class: "private" "const" -> private_const
+var_class: "public" "const" -> public_const
+var_class: "export" "const" -> export_const
 
 expr?: assign
 
@@ -52,34 +94,48 @@ assign?: orelse
 orelse: logic "orelse" orelse
 orelse?: logic
 
-logic : logic ("&&" | "||") cmp -> binary
+logic: logic "&&" cmp -> boolean_and
+logic: logic "||" cmp -> boolean_or
 logic?: cmp
 
-cmp: add ("<"! | ">"! | "<="! | ">="! | "=="! | "!="!) add -> binary
+cmp: cmp "!=" add -> is_equal_to
+cmp: cmp "==" add -> is_not_equal_to
+cmp: cmp "<" add -> is_less_than
+cmp: cmp ">" add -> is_greater_than
+cmp: cmp "<=" add -> is_less_than_or_equal_to
+cmp: cmp ">=" add -> is_greater_than_or_equal_to
 cmp?: add
 
-add: add [+-] mul -> binary
+add: add "+" mul -> add
+add: add "-" mul -> subtract
 add?: mul
 
-mul: mul [*/%] pow -> binary
+mul: mul "*" pow -> multiply
+mul: mul "/" pow -> divide
+mul: mul "%" pow -> modulo
 mul?: pow
 
-pow: prefix "**"! pow -> binary
+pow: prefix "**" pow
 pow?: prefix
 
-prefix: [-+!] postfix -> unary
+prefix: "-" postfix -> negate
+prefix?: "+" postfix
+prefix: "!" postfix -> not
+prefix?: return_expr
+return_expr: "return" expr? -> return
 prefix?: postfix
 
+postfix: postfix "++" -> post_inc
+postfix: postfix "--" -> post_dec
 postfix: postfix "[" expr "]" -> index
 postfix: postfix "." ident -> prop
 postfix: postfix "." "as" "<" type ">" "(" ")" -> cast
-postfix: postfix args -> call
-postfix: "new" type args -> new
+postfix: postfix "(" (expr ",")* expr? ")" block_arg? -> call
+postfix: postfix block_arg -> call
+postfix: "new" type "(" (expr ",")* expr? ")" -> new
 postfix?: single
 
-args?: "(" (expr ",")* expr? ")" block_arg*
-args?: block_arg+
-block_arg: "{" block_sig ";;" block_body "}"
+block_arg: "{" (func_type ";;") block_body "}"
 
 single?: ident | fn_expr | if_expr | do_expr | string | int | float | array | "(" expr ")"
 
@@ -89,16 +145,14 @@ else_if: "else" "if" "(" expr ")" "{" block_body "}"
 else: "else" "{" block_body "}"
 
 fn_expr: "fn" fn_expr_type "{" block_body "}"
-fn_expr_type: "(" (maybe_typed_param ",")* maybe_typed_param? ")" (":" return_type)?
+fn_expr_type: "(" (maybe_typed_param ",")* maybe_typed_param? ")" return_type?
 
 string: SINGLE_QUOTE_IGNORE (DOLLAR_IGNORE "{" expr "}" | STRING_BODY)* SINGLE_QUOTE_IGNORE
 string: DOUBLE_QUOTE_IGNORE (DOLLAR_IGNORE "{" expr "}" | STRING_BODY)* DOUBLE_QUOTE_IGNORE
 
 array: "[" (expr ",")* expr? "]"
 
-block_sig: "(" (maybe_typed_param ",")* maybe_typed_param? ")" (":" return_type)?
-
-func_type: "(" (maybe_typed_param ",")* maybe_typed_param? ")" (":" return_type)?
+func_type: "(" (maybe_typed_param ",")* maybe_typed_param? ")" return_type?
 
 maybe_typed_param: ident ":" type -> typed_param
 maybe_typed_param: ident -> non_typed_param
@@ -108,14 +162,13 @@ type_param: (CONTRAVARIANT | COVARIANT)? type_param_name type_extends?
 type_param_name: ident
 type_extends: "extends" type
 
-type: type | "Null" -> nullable_type
+type: type "|" "Null" -> nullable_type
 type: ident -> nominal_type
-type: "fn" "(" (param_type ",")* param_type? ")" (":" return_type)? -> function_type
+type: "fn" "(" (type ",")* type? ")" return_type -> function_type
 type: ident "<" (type ",")* type? ">" -> generic_type
 
-param_type: type
-return_type: type
-return_type: type "|" "Bubble" -> type_or_bubble
+return_type: ":" type -> return_type
+return_type: ":" type "|" "Bubble" -> return_type_or_bubble
 
 int: INT
 
@@ -124,8 +177,8 @@ float: FLOAT
 ident: CNAME
 
 STRING_BODY: (STRING_BODY_BASE | BACKSLASH ASCII)+
-FLOAT: INT "." [0123456789]*
-INT: "0" | [123456789] [0123456789]*
+FLOAT: INT "."! [0123456789]*
+INT: "0"! | [123456789] [0123456789]*
 
 COVARIANT: "out"
 CONTRAVARIANT: "in"

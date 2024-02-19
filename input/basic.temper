@@ -1,2 +1,2 @@
 
-var x: Int;
+[1, 2, 3].join(", ") { (s);; s.toString() }

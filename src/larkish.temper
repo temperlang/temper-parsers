@@ -31,6 +31,7 @@ export let larkish(): Earley {
     .seq().rule("Single").rule("Ignore").rule("CharQuestion").alias("ZeroOrOne")
     .seq().rule("Single").expand();
   ret.name("Single")
+    .seq().rule("CharOpenParen").rule("CharCloseParen").expand()
     .seq().rule("CharOpenParen").rule("Ignore").rule("Pattern").rule("Ignore").rule("CharCloseParen").expand()
     .seq().rule("Name").alias("Rule")
     .seq().rule("CharQuotes").rule("StringBody").rule("CharQuotes").alias("String")

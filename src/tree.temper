@@ -3,20 +3,25 @@ export interface Tree {
   public toString(): String;
 }
 
-export class Error extends Tree {
-  public wanted: List<String>;
-  public got: String;
-
-  public toString(): String {
-    return "(error: char: ${got})";
-  }
-}
-
 export class Token extends Tree {
   public value: String;
 
   public toString(): String {
     return "\"${value}\"";
+  }
+}
+
+export class MissingTree extends Tree {
+  public type: String;
+
+  public toString(): String {
+    return "?${type}";
+  }
+}
+
+export class MissingToken extends Tree {
+  public toString(): String {
+    return "?";
   }
 }
 

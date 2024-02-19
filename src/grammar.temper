@@ -97,12 +97,13 @@ export let grammar(whole: Tree): Earley {
     if (node.type == "OneOrMore") {
       var name = genName();
       translate(node.items[0]) { (item);;
+        earley.name(name);
         if (!term) {
-          earley.name(name).seq().rule(name).rule("__ignores__").rule(item).expand();
+          earley.seq().rule(name).rule("__ignores__").rule(item).expand();
         } else {
-          earley.name(name).seq().rule(name).rule(item).expand();
+          earley.seq().rule(name).rule(item).expand();
         }
-        earley.name(name).seq().rule(item).expand();
+        earley.seq().rule(item).expand();
         cb(name);
       };
       return;
@@ -110,12 +111,13 @@ export let grammar(whole: Tree): Earley {
     if (node.type == "ZeroOrMore") {
       var name = genName();
       translate(node.items[0]) { (item);;
+        earley.name(name);
         if (!term) {
-          earley.name(name).seq().rule(name).rule("__ignores__").rule(item).expand();
+          earley.seq().rule(name).rule("__ignores__").rule(item).expand();
         } else {
-          earley.name(name).seq().rule(name).rule(item).expand();
+          earley.seq().rule(name).rule(item).expand();
         }
-        earley.name(name).seq().expand();
+        earley.seq().expand();
         cb(name);
       };
       return;
@@ -123,8 +125,9 @@ export let grammar(whole: Tree): Earley {
     if (node.type == "ZeroOrOne") {
       var name = genName();
       translate(node.items[0]) { (item);;
-        earley.name(name).seq().rule(item).expand();
-        earley.name(name).seq().expand();
+        earley.name(name);
+        earley.seq().rule(item).expand();
+        earley.seq().expand();
         cb(name);
       };
       return;

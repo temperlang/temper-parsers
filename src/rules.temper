@@ -37,54 +37,50 @@ export class Rule {
 }
 
 export class Rules {
-  public nullable: ListBuilder<Boolean>;
+  public nullable: DenseBitVector;
   public rules: ListBuilder<Rule>;
   public byName: Mapped<String, Listed<Rule>>;
   private var built: Boolean;
 
   public constructor(): Void {
-    nullable = new ListBuilder<String>();
+    nullable = new DenseBitVector(0);
     rules = new ListBuilder<Rule>();
     built = true;
   }
 
   public build(): List<String> {
     var byNameBuilder = new MapBuilder<String, ListBuilder<Rule>>();
-    for (var j = 0; j < rules.length; j++) {
-      var rule = rules[j];
+    for (var i = 0; i < rules.length; i++) {
+      var rule = rules[i];
       var ls = byNameBuilder.getOr(rule.name, new ListBuilder<Rule>());
       ls.add(rule);
       byNameBuilder[rule.name] = ls;
     }
     byName = byNameBuilder;
-    nullable = new ListBuilder<Boolean>();
-    for (var j = 0; j < rules.length; j++) {
-      nullable.add(rules[j].parts.length == 0);
+    var isNull = new MapBuilder<String, Boolean>();
+    for (var i = 0; i < rules.length; i++) {
+      isNull[rules[i].name] = false;
     }
-    var unk = new ListBuilder<String>();
-    var more = true;
-    while (more) {
-      more = false;
-      for (var j = 0; j < rules.length; j++) {
-        var rule = rules[j];
-        for (var i = 0; i < rule.parts.length; i++) {
-          var part = rule.parts[i];
-          if (!part.isString) {
-            do {
-              var found = byName[part.data];
-              for (var k = 0; k < found.length; k++) {
-                if (found[k].parts.length == 0 || nullable[found[k].id]) {
-                  if (!nullable[rule.id]) {
-                    nullable[rule.id] = true;
-                    more = true;
-                  }
-                }
-              }
-            } orelse unk.add(part.data);
+    for (var i = 0; i < rules.length; i++) {
+      isNull[rules[i].name] = isNull[rules[i].name] || rules[i].parts.length == 0;
+    }
+    nullable = new DenseBitVector(rules.length);
+    for (var i = 0; i < rules.length; i++) {
+      var rule = rules[i];
+      var cur = true;
+      for (var j = 0; j < rule.parts.length; j++) {
+        var part = rule.parts[j];
+        if (part.isString) {
+          cur = false;
+        } else {
+          if (!isNull[part.data]) {
+            cur = false;
           }
         }
       }
+      nullable[rule.id] = cur;
     }
+    var unk = new ListBuilder<String>();
     built = true;
     return unk.toList();
   }

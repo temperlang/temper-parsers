@@ -96,11 +96,13 @@ export class StateSets {
             next.add(item.advanceWith(tokens));
           }
         } else {
-          var found = byName[ent.name()];
+          var name = ent.name();
+          var found = byName[name];
           for (var k = 0; k < found.length; k++) {
-            var itemFound = found[k].toItem(i);
+            var cur = found[k];
+            var itemFound = cur.toItem(i);
             last.add(itemFound);
-            if (nullable[itemFound.id]) {
+            if (nullable[cur.id]) {
               var magic = item.advance();
               last.add(magic);
             }
