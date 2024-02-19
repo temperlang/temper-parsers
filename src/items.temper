@@ -1,12 +1,10 @@
 
-let {...} = import("std/regex");
 let {...} = import("./tree.temper");
 
 export interface ItemPart {
   public isTest(): Boolean;
   public name(): String;
-  public chars(): List<String>;
-  public check(s: String): Boolean;
+  public check(c: Int): Boolean;
   public toString(): String;
 }
 
@@ -21,11 +19,7 @@ export class ItemPartItem extends ItemPart {
     return rule;
   }
 
-  public chars(): List<String> {
-    return [];
-  }
-
-  public check(s: String): Boolean {
+  public check(c: Int): Boolean {
     return false;
   }
 
@@ -36,15 +30,14 @@ export class ItemPartItem extends ItemPart {
 
 export class ItemPartSet extends ItemPart {
   public vals: List<String>;
-  private regex: CompiledRegex;
+  private bits: DenseBitVector;
 
   public constructor(args: List<String>): Void {
     vals = args;
-    var ents = new ListBuilder<CodePart>();
+    bits = new DenseBitVector(128);
     for (var i = 0; i < args.length; i++) {
-      ents.add(new CodePoints(args[i]));
+      bits[args[i].codePoints.read()] = true;
     }
-    regex = new CodeSet(ents.toList(), false).compiled();
   }
   
   public isTest(): Boolean {
@@ -55,12 +48,8 @@ export class ItemPartSet extends ItemPart {
     return "FAKE ${vals.join(" | ") { (s);; s }}";
   }
 
-  public chars(): List<String> {
-    return vals;
-  }
-
-  public check(s: String): Boolean {
-    return regex.found(s);
+  public check(c: Int): Boolean {
+    return bits[c];
   }
 
   public toString(): String {
@@ -75,8 +64,8 @@ export class Item {
   public dot: Int;
   public start: Int;
   public id: Int;
-  private trees: Listed<fn(): Listed<Tree>>;
-  private cons: fn(Listed<Tree>): Listed<Tree>;
+  public last: List<Item>;
+  public trees: Listed<Tree>;
 
   public toString(): String {
     var build = new ListBuilder<String>();
@@ -93,26 +82,27 @@ export class Item {
     return build.join(" ") { (s);; s };
   }
 
-  public advanceWith(got: fn(): Listed<Tree>): Item {
-    var next = new ListBuilder<fn(): Listed<Tree>>();
-    next.addAll(trees);
-    next.add(got);
-    return new Item(name, ents, dot + 1, start, id, next, cons);
+  public advanceWith(got: Listed<Tree>): Item {
+    return new Item(name, ents, dot + 1, start, id, [this], got);
   }
 
   public advance(): Item {
-    return new Item(name, ents, dot + 1, start, id, trees, cons);
+    return new Item(name, ents, dot + 1, start, id, [this], []);
   }
 
   public eq(other: Item): Boolean {
     return id == other.id && start == other.start && dot == other.dot; 
   }
 
-  public toTree(): Listed<Tree> {
+  public toTree(cons: Listed<fn(Listed<Tree>): Listed<Tree>>): Listed<Tree> {
     var realTrees = new ListBuilder<Tree>();
-    for (var i = 0; i < trees.length; i++) {
-      realTrees.addAll(trees[i]());
+    let rec(item: Item): Void {
+      if (item.last.length != 0) {
+        rec(item.last[0]);
+      }
+      realTrees.addAll(item.trees);
     }
-    return cons(realTrees);
+    rec(this);
+    return cons[id](realTrees.toList());
   }
 }

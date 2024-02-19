@@ -58,34 +58,18 @@ export class StateSet {
   }
 }
 
-let toTreeLambda(setv: Item): fn(): Listed<Tree> {
-  var hasTree = false;
-  var trees: Listed<Tree>;
-  return fn(): Listed<Tree> {
-    if (!hasTree) {
-      hasTree = true;
-      trees = setv.toTree();
-    }
-    return trees;
-  };
-}
-
-let tokenLambda(input: String): fn(): Listed<Tree> {
-  return fn(): List<Tree> {
-    return [new Token(input)];
-  };
-}
-
 export class StateSets {
   public nullable: DenseBitVector;
   public byName: Mapped<String, Listed<Rule>>;
   public sets: ListBuilder<StateSet>;
+  public cons: Listed<fn(Listed<Tree>): Listed<Tree>>;
 
-  public constructor(n: DenseBitVector, s: StateSet, b: Mapped<String, Listed<Rule>>): Void {
+  public constructor(n: DenseBitVector, s: StateSet, b: Mapped<String, Listed<Rule>>, c: Listed<fn(Listed<Tree>): Listed<Tree>>): Void {
     nullable = n;
     byName = b;
     sets = new ListBuilder<StateSet>();
     sets.add(s);
+    cons = c;
   }
 
   public toString(): String {
@@ -99,7 +83,9 @@ export class StateSets {
     return build.join("\n") { (s);; s };
   }
 
-  private process1(i: Int, next: StateSet, input: String): Void {
+  private process1(i: Int, next: StateSet, input: Int, str: String): Void {
+    var token: Tree = new Token(str);
+    var tokens = [token]; 
     var last = sets[i];
     for (var j = 0; j < last.length; j++) {
       var item = last[j];
@@ -107,7 +93,7 @@ export class StateSets {
         var ent = item.ents[item.dot];
         if (ent.isTest()) {
           if (ent.check(input)) {
-            next.add(item.advanceWith(tokenLambda(input)));
+            next.add(item.advanceWith(tokens));
           }
         } else {
           var found = byName[ent.name()];
@@ -121,21 +107,22 @@ export class StateSets {
           }
         }
       } else {
-        var tree = toTreeLambda(item);
+        var trees = item.toTree(cons);
         var olds = sets[item.start].nexts.getOr(item.name, new ListBuilder<Item>());
         for (var k = 0; k < olds.length; k++) {
-          last.add(olds[k].advanceWith(tree));
+          last.add(olds[k].advanceWith(trees));
         }
       }
     }
   }
-
-  public chars(input: List<String>): Void {
-    for (var i = 0; i < input.length; i++) {
+  public string(str: String): Void {
+    var split = str.split("");
+    var len = split.length;
+    for (var i = 0; i < len; i++) {
       var next = new StateSet();
-      process1(sets.length-1, next, input[i]);
+      process1(sets.length-1, next, split[i].codePoints.read(), split[i]);
       if (next.length == 0) {
-        console.log("Error at char#${i.toString()} (char: ${input[i]})");
+        console.log("Error at char#${i.toString()} (char: ${split[i]})");
         return;
       }
       sets[sets.length-1].clear();
@@ -143,10 +130,6 @@ export class StateSets {
     }
     var next = new StateSet();
     var i = sets.length-1;
-    process1(i, next, "");
-  }
-
-  public string(input: String): Void {
-    chars(input.split(""));
+    process1(i, next, -1, "");
   }
 }

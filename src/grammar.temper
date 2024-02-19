@@ -164,7 +164,7 @@ export let grammar(whole: Tree): Earley {
     }
   }
 
-  translate(whole) { (name);; };
+  translate(whole) { (s);; };
 
   earley.name("__start__").seq().rule("__ignores__").rule("start").rule("__ignores__").expand();
   earley.name("__ignores__").seq().rule("__ignores__").rule("ignore").ignore();

@@ -15,15 +15,15 @@ export class Parser {
     earley = grammar(tree);
   }
 
-  public parse(str: String): Tree | Bubble {
+  public parse(str: String): Tree {
     return earley.first("__start__", str);
   }
 
-  public trees(str: String): List<Tree> {
+  public trees(str: String): Listed<Tree> {
     return earley.trees("__start__", str);
   }
 
-  public findAll(str: String): List<Tree> {
+  public findAll(str: String): Listed<Tree> {
     return earley.all("__start__", str);
   }
 }

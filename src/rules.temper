@@ -19,7 +19,6 @@ export class Rule {
   public name: String;
   public parts: List<RulePart>;
   public id: Int;
-  public cons: fn(Listed<Tree>): Listed<Tree>;
   public iparts: List<ItemPart>;
 
   public toString(): String {
@@ -33,7 +32,7 @@ export class Rule {
   }
 
   public toItem(at: Int): Item {
-    return new Item(name, iparts, 0, at, id, [], cons);
+    return new Item(name, iparts, 0, at, id, [], []);
   }
 }
 

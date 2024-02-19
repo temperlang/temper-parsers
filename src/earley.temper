@@ -4,7 +4,7 @@ let {...} = import("./rules.temper");
 let {...} = import("./states.temper");
 let {...} = import("./items.temper");
 
-let makeStateSets(rules: Rules, start: String): StateSets {
+let makeStateSetsCons(rules: Rules, start: String, cons: ListBuilder<fn(Listed<Tree>): Listed<Tree>>): StateSets {
   var found = if (start != "") {
     rules.byName[start]
   } else {
@@ -18,23 +18,27 @@ let makeStateSets(rules: Rules, start: String): StateSets {
   for (var i = 0; i < rules.nullable.length; i++) {
     nullable[i] = rules.nullable[i];
   }
-  return new StateSets(nullable, firstSet, rules.byName);
+  return new StateSets(nullable, firstSet, rules.byName, cons);
 }
 
 export class Earley {
   private rname: String;
   private parts: ListBuilder<ListBuilder<RulePart>>;
-  private consBy: ListBuilder<fn(Listed<Tree>): Listed<Tree>>;
   private rules: Rules;
   private nid: Int;
   private init: String; 
+  private cons: ListBuilder<fn(Listed<Tree>): Listed<Tree>>;
 
   public constructor(): Void {
     rname = "";
-    consBy = new ListBuilder<fn(Listed<Tree>): Listed<Tree>>();
     parts = new ListBuilder<ListBuilder<RulePart>>();
     rules = new Rules();
     nid = 0;
+    cons = new ListBuilder<fn(Listed<Tree>): Listed<Tree>>();
+  }
+
+  let makeStateSets(vrules: Rules, vstart: String): StateSets {
+    return makeStateSetsCons(vrules, vstart, cons);
   }
 
   public name(s: String): Earley {
@@ -48,10 +52,9 @@ export class Earley {
           iparts.add(new ItemPartItem(pparts[i].data));
         }
       }
-      rules.add(new Rule(rname, parts[i].toList(), nid++, consBy[i], iparts.toList()));
+      rules.add(new Rule(rname, parts[i].toList(), nid++, iparts.toList()));
     }
     rname = s;
-    consBy = new ListBuilder<fn(Listed<Tree>): Listed<Tree>>();
     parts = new ListBuilder<ListBuilder<RulePart>>();
     return this;
   }
@@ -59,26 +62,22 @@ export class Earley {
   public seq(): Earley {
     var rnameNow = rname;
     parts.add(new ListBuilder<RulePart>());
-    consBy.add(fn(items: Listed<Tree>): List<Tree> {
-      return [new Node(rnameNow, items)];
+    cons.add(fn(items: Listed<Tree>): Listed<Tree> {
+      var t: Tree = new Node(rnameNow, items);
+      return [t];
     });
     return this;
   }
 
-  public cons(cons: fn(Listed<Tree>): Listed<Tree>): Earley {
-    consBy[consBy.length-1] = cons;
-    return this;
-  }
-
   public ignore(): Earley {
-    consBy[consBy.length-1] = fn(items: Listed<Tree>): Listed<Tree> {
+    cons[cons.length-1] = fn(items: Listed<Tree>): Listed<Tree> {
       return [];
     };
     return this;
   }
 
   public expand(): Earley {
-    consBy[consBy.length-1] = fn(items: Listed<Tree>): Listed<Tree> {
+    cons[cons.length-1] = fn(items: Listed<Tree>): Listed<Tree> {
       return items;
     };
     return this;
@@ -94,15 +93,17 @@ export class Earley {
         }
       });
     }
-    consBy[consBy.length-1] = fn(items: Listed<Tree>): List<Tree> {
-      return [new Token(walk(items))];
+    cons[cons.length-1] = fn(items: Listed<Tree>): Listed<Tree> {
+      var t: Tree = new Token(walk(items));
+      return [t];
     };
     return this;
   }
 
   public alias(aliasName: String): Earley {
-    consBy[consBy.length-1] = fn(items: Listed<Tree>): List<Tree> {
-      return [new Node(aliasName, items)];
+    cons[cons.length-1] = fn(items: Listed<Tree>): Listed<Tree> {
+      var t: Tree = new Node(aliasName, items);
+      return [t];
     };
     return this;
   }
@@ -128,7 +129,7 @@ export class Earley {
   public debug(src: String): Void {
     var sets = makeStateSets(build(), "");
     var split = src.split("");
-    sets.chars(split);
+    sets.string(src);
     for (var j = 0; j < sets.sets.length; j++) {
       var c = split[j] orelse "<none>";
       console.log("=== ${j.toString()} (char: ${c}) ===");
@@ -148,7 +149,7 @@ export class Earley {
     }
   }
 
-  public trees(start: String, src: String): List<Tree> {
+  public trees(start: String, src: String): Listed<Tree> {
     var sets = makeStateSets(build(), start);
     sets.string(src);
     var ret = new ListBuilder<Tree>();
@@ -156,13 +157,13 @@ export class Earley {
     for (var i = 0; i < last.length; i++) {
       var cur = last[i];
       if (cur.name == start && cur.start == 0 && cur.dot == cur.ents.length) {
-        ret.addAll(cur.toTree());
+        ret.addAll(cur.toTree(cons));
       }
     }
     return ret.toList();
   }
 
-  public first(start: String, src: String): Tree | Bubble {
+  public first(start: String, src: String): Tree {
     var sets = makeStateSets(build(), start);
     sets.string(src);
     var ret = new ListBuilder<Tree>();
@@ -170,13 +171,13 @@ export class Earley {
     for (var i = 0; i < last.length; i++) {
       var cur = last[i];
       if (cur.name == start && cur.start == 0 && cur.dot == cur.ents.length) {
-        ret.addAll(cur.toTree());
+        ret.addAll(cur.toTree(cons));
       }
     }
     return ret.getOr(0, new Token("ERROR"));
   }
 
-  public all(start: String, src: String): List<Tree> {
+  public all(start: String, src: String): Listed<Tree> {
     var sets = makeStateSets(build(), start);
     sets.string(src);
     var ret = new ListBuilder<Tree>();
@@ -185,14 +186,14 @@ export class Earley {
       for (var j = 0; j < last.length; j++) {
         var cur = last[j];
         if (cur.name == start && cur.dot == cur.ents.length) {
-          ret.addAll(cur.toTree());
+          ret.addAll(cur.toTree(cons));
         }
       }
     }
     return ret.toList();
   }
 
-  public allTrees(src: String): List<Tree> {
+  public allTrees(src: String): Listed<Tree> {
     var sets = makeStateSets(build(), "");
     sets.string(src);
     var ret = new ListBuilder<Tree>();
@@ -200,7 +201,7 @@ export class Earley {
     for (var i = 0; i < last.length; i++) {
       var cur = last[i];
       if (cur.start == 0 && cur.dot == cur.ents.length) {
-        ret.addAll(cur.toTree());
+        ret.addAll(cur.toTree(cons));
       }
     }
     return ret.toList();
