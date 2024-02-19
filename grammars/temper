@@ -5,11 +5,10 @@ program: stmt* (stmt | expr)?
 
 block_body: stmt* (stmt | expr)?
 
-stmt: var_decl | func_decl | expr_stmt | return_stmt | func_def | for_stmt | while_stmt | if_stmt | class_def | interface_def | match_stmt
+stmt: var_decl | func_decl | expr_stmt | func_def | for_stmt | while_stmt | if_stmt | class_def | interface_def | match_stmt
 
 var_decl?: var_decl_no_semi ";"
 expr_stmt: expr ";"
-return_stmt: return_expr ";"
 
 do_stmt?: do_expr
 if_stmt?: if_expr
@@ -119,10 +118,11 @@ pow: prefix "**" pow
 pow?: prefix
 
 prefix: "-" postfix -> negate
-prefix?: "+" postfix
+prefix: "++" postfix -> pre_inc
+prefix: "--" postfix -> pre_dec
 prefix: "!" postfix -> not
-prefix?: return_expr
-return_expr: "return" expr? -> return
+prefix: "return" expr? -> return
+prefix?: "+" postfix
 prefix?: postfix
 
 postfix: postfix "++" -> post_inc
@@ -147,8 +147,8 @@ else: "else" "{" block_body "}"
 fn_expr: "fn" fn_expr_type "{" block_body "}"
 fn_expr_type: "(" (maybe_typed_param ",")* maybe_typed_param? ")" return_type?
 
-string: SINGLE_QUOTE_IGNORE (DOLLAR_IGNORE "{" expr "}" | STRING_BODY)* SINGLE_QUOTE_IGNORE
-string: DOUBLE_QUOTE_IGNORE (DOLLAR_IGNORE "{" expr "}" | STRING_BODY)* DOUBLE_QUOTE_IGNORE
+string: #' ("${" expr "}" | STRING_BODY )* #'
+string: #" ("${" expr "}" | STRING_BODY )* #"
 
 array: "[" (expr ",")* expr? "]"
 
@@ -174,14 +174,18 @@ int: INT
 
 float: FLOAT
 
-ident: CNAME
+ident: NAME
 
-STRING_BODY: (STRING_BODY_BASE | BACKSLASH ASCII)+
+STRING_BODY: (RAW_STRING_BODY_BASE | ESCAPE)*
+
+NAME: RAW_ALPHA_UNDER RAW_ALNUM_UNDER*
+
+ESCAPE: #\ ([rtn $'] | #" | #\)
 FLOAT: INT "."! [0123456789]*
 INT: "0"! | [123456789] [0123456789]*
 
 COVARIANT: "out"
 CONTRAVARIANT: "in"
 
-ignore: WHITESPACE
-ignore: "//" ASCII*
+ignore: RAW_WHITESPACE+
+ignore: "//" RAW_ASCII*

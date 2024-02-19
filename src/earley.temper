@@ -4,24 +4,12 @@ let {...} = import("./rules.temper");
 let {...} = import("./states.temper");
 let {...} = import("./items.temper");
 
-let makeStateSetsCons(rules: Rules, start: String, cons: ListBuilder<fn(Listed<Tree>): Listed<Tree>>): StateSets {
-  var found = if (start != "") {
-    rules.byName[start]
-  } else {
-    rules.rules.toList()
-  };
-  var firstSet = new StateSet();
-  for (var i = 0; i < found.length; i++) {
-    firstSet.add(found[i].toItem(0));
-  }
-  return new StateSets(rules.nullable, firstSet, rules.byName, cons);
-}
-
 export class Earley {
   private rname: String;
   private parts: ListBuilder<ListBuilder<RulePart>>;
   private rules: Rules;
   private nid: Int;
+  private maxDot: Int;
   private init: String; 
   private cons: ListBuilder<fn(Listed<Tree>): Listed<Tree>>;
 
@@ -30,11 +18,23 @@ export class Earley {
     parts = new ListBuilder<ListBuilder<RulePart>>();
     rules = new Rules();
     nid = 0;
+    maxDot = 0;
     cons = new ListBuilder<fn(Listed<Tree>): Listed<Tree>>();
   }
 
-  let makeStateSets(vrules: Rules, vstart: String): StateSets {
-    return makeStateSetsCons(vrules, vstart, cons);
+  private makeStateSets(start: String): StateSets {
+    var rules = build();
+    var found = if (start != "") {
+      rules.byName[start]
+    } else {
+      rules.rules.toList()
+    };
+    var config = new StateConfig(nid, maxDot);
+    var firstSet = new StateSet(config);
+    for (var i = 0; i < found.length; i++) {
+      firstSet.add(found[i].toItem(0));
+    }
+    return new StateSets(rules.nullable, firstSet, rules.byName, cons);
   }
 
   public name(s: String): Earley {
@@ -47,6 +47,9 @@ export class Earley {
         } else {
           iparts.add(new ItemPartItem(pparts[i].data));
         }
+      }
+      if (iparts.length > maxDot) {
+        maxDot = iparts.length;
       }
       rules.add(new Rule(rname, parts[i].toList(), nid++, iparts.toList()));
     }
@@ -122,22 +125,8 @@ export class Earley {
     return this;
   }
 
-  public debug(src: String): Void {
-    var sets = makeStateSets(build(), "");
-    var split = src.split("");
-    sets.string(src);
-    for (var j = 0; j < sets.sets.length; j++) {
-      var c = split[j] orelse "<none>";
-      console.log("=== ${j.toString()} (char: ${c}) ===");
-      var last = sets.sets[j];
-      for (var i = 0; i < last.length; i++) {
-        console.log(last[i].toString());
-      }
-    }
-  }
-
   public trees(start: String, src: String): Listed<Tree> {
-    var sets = makeStateSets(build(), start);
+    var sets = makeStateSets(start);
     sets.string(src);
     var ret = new ListBuilder<Tree>();
     var last = sets.sets[sets.sets.length-1];
@@ -151,7 +140,7 @@ export class Earley {
   }
 
   public first(start: String, src: String): Tree {
-    var sets = makeStateSets(build(), start);
+    var sets = makeStateSets(start);
     sets.string(src);
     var ret = new ListBuilder<Tree>();
     var last = sets.sets[sets.sets.length-1];
@@ -165,7 +154,7 @@ export class Earley {
   }
 
   public all(start: String, src: String): Listed<Tree> {
-    var sets = makeStateSets(build(), start);
+    var sets = makeStateSets(start);
     sets.string(src);
     var ret = new ListBuilder<Tree>();
     for (var i = 0; i < sets.sets.length; i++) {
@@ -181,7 +170,7 @@ export class Earley {
   }
 
   public allTrees(src: String): Listed<Tree> {
-    var sets = makeStateSets(build(), "");
+    var sets = makeStateSets("");
     sets.string(src);
     var ret = new ListBuilder<Tree>();
     var last = sets.sets[sets.sets.length-1];

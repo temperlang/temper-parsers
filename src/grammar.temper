@@ -21,7 +21,7 @@ export let grammar(whole: Tree): Earley {
       };
       cb("");
       return;
-    } 
+    }
     if (node.type == "AliasDefine") {
       var alias = node.items[2].as<Token>().value;
       var name = node.items[0].as<Token>().value;
@@ -36,7 +36,7 @@ export let grammar(whole: Tree): Earley {
         cb("");
       };
       return;
-    } 
+    }
     if (node.type == "Define") {
       var name = node.items[0].as<Node>();
       var base = name.items[0].as<Token>().value;
@@ -53,7 +53,12 @@ export let grammar(whole: Tree): Earley {
         cb("");
       };
       return;
-    } 
+    }
+    if (node.type == "Rule") {
+      var name = node.items[0].as<Token>().value;
+      cb(name);
+      return;
+    }
     if (node.type == "Select") {
       var name = genName();
       var names = new ListBuilder<String>();
@@ -70,7 +75,7 @@ export let grammar(whole: Tree): Earley {
         };
       };
       return;
-    } 
+    }
     if (node.type == "Sequence") {
       var name = genName();
       var names = new ListBuilder<String>();
@@ -93,7 +98,7 @@ export let grammar(whole: Tree): Earley {
         };
       };
       return;
-    } 
+    }
     if (node.type == "OneOrMore") {
       var name = genName();
       translate(node.items[0]) { (item);;
@@ -107,7 +112,7 @@ export let grammar(whole: Tree): Earley {
         cb(name);
       };
       return;
-    } 
+    }
     if (node.type == "ZeroOrMore") {
       var name = genName();
       translate(node.items[0]) { (item);;
@@ -131,11 +136,7 @@ export let grammar(whole: Tree): Earley {
         cb(name);
       };
       return;
-    } 
-    if (node.type == "Rule") {
-      cb(node.items[0].as<Token>().value);
-      return;
-    } 
+    }
     if (node.type == "CharSet") {
       var name = genName();
       earley.name(name).seq().char(node.items[0].as<Token>().value).token();
@@ -171,27 +172,13 @@ export let grammar(whole: Tree): Earley {
 
   earley.name("__start__").seq().rule("__ignores__").rule("start").rule("__ignores__").expand();
   earley.name("__ignores__").seq().rule("__ignores__").rule("ignore").ignore();
-  earley.name("__ignores__").seq().rule("ignore").ignore();
-  earley.name("ignore").seq().ignore();
+  earley.name("__ignores__").seq().ignore();
 
-  earley.name("BACKSLASH").seq().char("\\").token();
-  earley.name("DOLLAR").seq().char("\$").ignore();
-  earley.name("DOLLAR_IGNORE").seq().char("\$").ignore();
-  earley.name("STRING_BODY_BASE").seq().char(stringBodyBase).token();
-  earley.name("SINGLE_QUOTE_IGNORE").seq().char("'").ignore();
-  earley.name("DOUBLE_QUOTE_IGNORE").seq().char("\"").ignore();
-  earley.name("DIGIT").seq().char(digits).token();
-  earley.name("DIGITS").seq().char(digits).rule("DIGITS").token();
-  earley.name("DIGITS").seq().char(digits).token();
-  earley.name("LOWERCASE").seq().char(lowercase).token();
-  earley.name("UPPERCASE").seq().char(uppercase).token();
-  earley.name("LETTER").seq().char(alpha).token();
-  earley.name("LETTERS").seq().char(alpha).rule("LETTERS").token();
-  earley.name("LETTERS").seq().char(alpha).token();
-  earley.name("ASCII").seq().char(ascii).token();
-  earley.name("CNAME").seq().rule("CNAME").char(word1).token();
-  earley.name("CNAME").seq().char(word0).token();
-  earley.name("WHITESPACE").seq().char(" \t\r\n").token();
+  earley.name("RAW_ASCII").seq().char(ascii).token();
+  earley.name("RAW_WHITESPACE").seq().char("\t\r\n ").token();
+  earley.name("RAW_STRING_BODY_BASE").seq().char(stringBodyBase).token();
+  earley.name("RAW_ALPHA_UNDER").seq().char("${alpha}_").token();
+  earley.name("RAW_ALNUM_UNDER").seq().char("${alnum}_").token();
 
   return earley;
 }

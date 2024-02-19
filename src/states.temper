@@ -1,50 +1,57 @@
 
 
-let {...} = import("./items.temper");
-let {...} = import("./rules.temper");
-let {...} = import("./tree.temper");
+let {...} = import("./items");
+let {...} = import("./rules");
+let {...} = import("./tree");
+
+export class StateConfig {
+  public numIds: Int;
+  public maxDot: Int;
+}
+
+var emptyItemList: List<Item> = [];
+var emptyItemPart: ItemPart = new ItemPartSet([]);
 
 export class StateSet {
   public nexts: MapBuilder<String, ListBuilder<Item>>;
+  public config: StateConfig;
   private setv: ListBuilder<Item>;
-  private hashes: MapBuilder<Int, ListBuilder<Item>>;
+  private hashes: MapBuilder<Int, Item | Null>;
 
-  public constructor() {
+  public constructor(conf: StateConfig) {
     setv = new ListBuilder<Item>();
     nexts = new MapBuilder<String, ListBuilder<Item>>();
     hashes = new MapBuilder<Int, ListBuilder<Item>>();
+    config = conf;
   }
 
-  public clear(): Void {
+  public clear(): Int {
+    var len = setv.length;
     setv = new ListBuilder<Item>();
+    hashes = new MapBuilder<String, ListBuilder<Item>>();
+    return len;
   }
   
   public add(next: Item): Boolean {
-    var hash = next.id * next.ents.length + next.dot;
-    var got = hashes.getOr(hash, new ListBuilder<Item>());
-    var len = got.length;
-    if (len == 0) {
-      hashes[hash] = got;
-    } else {
-      for (var i = 0; i < len; i++) {
-        var cur = got.getOr(i, next);
-        if (cur.eq(next)) {
-          return false;
-        }
-      }
+    var hash
+      = next.id
+      + (next.dot + next.start * config.maxDot) * config.numIds;
+    var got = hashes.getOr(hash, null);
+    if (got != null) {
+      return false;
     }
+    hashes[hash] = next;
     if (next.dot < next.ents.length) {
-      var ent = next.ents[next.dot];
-      var at = ent.name(); 
-      var nextv = nexts.getOr(at, new ListBuilder<Item>());
-      if (nextv.length == 0) {
-        nexts[at] = nextv;
-      }
+      var ent = next.ents.getOr(next.dot, emptyItemPart);
       if (!ent.isTest()) {
+        var at = ent.name(); 
+        var nextv = nexts.getOr(at, new ListBuilder<Item>());
+        if (nextv.length == 0) {
+          nexts[at] = nextv;
+        }
         nextv.add(next);
       }
     }
-    got.add(next);
     setv.add(next);
     return true;
   }
@@ -56,6 +63,16 @@ export class StateSet {
   public get length(): Int {
     return setv.length;
   }
+}
+
+let walk(trees: Listed<Tree>): String {
+  return trees.join("", fn(t: Tree): String {
+    match (t) {
+      is Token -> return t.as<Token>().value;
+      is Node -> return walk(t.as<Node>().items);
+      else -> bubble();
+    }
+  });
 }
 
 export class StateSets {
@@ -72,66 +89,60 @@ export class StateSets {
     cons = c;
   }
 
-  public toString(): String {
-    var build = new ListBuilder<String>();
-    for (var i = 0; i < sets.length; i++) {
-      build.add("=== ${i.toString()} ===");
-      for (var j = 0; j < sets[i].length; j++) {
-        build.add(sets[i][j].toString());
-      }
-    }
-    return build.join("\n") { (s);; s };
-  }
-
-  private process1(i: Int, next: StateSet, input: Int, str: String): Void {
-    var token: Tree = new Token(str);
-    var tokens = [token]; 
+  private process1(i: Int, next: StateSet, code: Int, token: Tree): Void {
     var last = sets[i];
     for (var j = 0; j < last.length; j++) {
       var item = last[j];
-      if (item.dot < item.ents.length) {
+      var ilen = item.ents.length;
+      if (item.dot < ilen) {
         var ent = item.ents[item.dot];
         if (ent.isTest()) {
-          if (ent.check(input)) {
-            next.add(item.advanceWith(tokens));
+          if (ent.check(code)) {
+            next.add(item.advanceWithSingle(token));
           }
         } else {
           var name = ent.name();
           var found = byName[name];
-          for (var k = 0; k < found.length; k++) {
+          var flen = found.length;
+          var noMagic = true;
+          for (var k = 0; k < flen; k++) {
             var cur = found[k];
             var itemFound = cur.toItem(i);
             last.add(itemFound);
             if (nullable[cur.id]) {
               var magic = item.advance();
               last.add(magic);
+              noMagic = false;
             }
           }
         }
       } else {
         var trees = item.toTree(cons);
         var olds = sets[item.start].nexts.getOr(item.name, new ListBuilder<Item>());
-        for (var k = 0; k < olds.length; k++) {
+        var olen = olds.length;
+        for (var k = 0; k < olen; k++) {
           last.add(olds[k].advanceWith(trees));
         }
       }
     }
   }
+
   public string(str: String): Void {
+    var config = sets[0].config;
     var split = str.split("");
     var len = split.length;
     for (var i = 0; i < len; i++) {
-      var next = new StateSet();
-      process1(sets.length-1, next, split[i].codePoints.read(), split[i]);
+      var next = new StateSet(config);
+      var chr = split[i];
+      process1(sets.length-1, next, chr.codePoints.read(), new Token(chr));
       if (next.length == 0) {
-        console.log("Error at char#${i.toString()} (char: ${split[i]})");
+        console.log("Error at char#${i.toString()} (char: ${chr})");
         return;
       }
       sets[sets.length-1].clear();
       sets.add(next);
     }
-    var next = new StateSet();
-    var i = sets.length-1;
-    process1(i, next, -1, "");
+    var next = new StateSet(config);
+    process1(sets.length-1, next, -1, new Token(""));
   }
 }

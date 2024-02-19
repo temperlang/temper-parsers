@@ -1,6 +1,6 @@
 
-let {...} = import("./tree.temper");
-let {...} = import("./items.temper");
+let {...} = import("./tree");
+let {...} = import("./items");
 
 export class RulePart {
   public isString: Boolean;
@@ -32,7 +32,7 @@ export class Rule {
   }
 
   public toItem(at: Int): Item {
-    return new Item(name, iparts, 0, at, id, [], []);
+    return new FirstItem(name, iparts, 0, at, id);
   }
 }
 
@@ -65,6 +65,7 @@ export class Rules {
       isNull[rules[i].name] = isNull[rules[i].name] || rules[i].parts.length == 0;
     }
     nullable = new DenseBitVector(rules.length);
+    var unk = new ListBuilder<String>();
     for (var i = 0; i < rules.length; i++) {
       var rule = rules[i];
       var cur = true;
@@ -72,15 +73,20 @@ export class Rules {
         var part = rule.parts[j];
         if (part.isString) {
           cur = false;
+          break;
         } else {
-          if (!isNull[part.data]) {
+          var got = isNull[part.data] orelse do {
+            unk.add(part.data);
+            true
+          };
+          if (!got) {
             cur = false;
+            break;
           }
         }
       }
       nullable[rule.id] = cur;
     }
-    var unk = new ListBuilder<String>();
     built = true;
     return unk.toList();
   }

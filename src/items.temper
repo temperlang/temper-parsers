@@ -1,5 +1,5 @@
 
-let {...} = import("./tree.temper");
+let {...} = import("./tree");
 
 export interface ItemPart {
   public isTest(): Boolean;
@@ -58,59 +58,104 @@ export class ItemPartSet extends ItemPart {
   }
 }
 
-export class Item {
+var noTrees: List<Tree> = [];
+
+export interface Item {
   public name: String;
   public ents: List<ItemPart>;
   public dot: Int;
   public start: Int;
   public id: Int;
-  public last: List<Item>;
-  public trees: Listed<Tree>;
 
-  public toString(): String {
-    var build = new ListBuilder<String>();
-    build.add(name);
-    build.add("(start: ${start.toString()})");
-    build.add("->");
-    for (var i = 0; i < dot; i++) {
-      build.add(ents[i].toString());
-    }
-    build.add("*");
-    for (var i = dot; i < ents.length; i++) {
-      build.add(ents[i].toString());
-    }
-    return build.join(" ") { (s);; s };
+  public addTreesTo(b: ListBuilder<Tree>): Void;
+
+  public toTree(cons: Listed<fn(Listed<Tree>): Listed<Tree>>): Listed<Tree>;
+ 
+  public advanceWithSingle(got: Tree): Item {
+    var self = this;
+    return new TreeItem(self.name, self.ents, self.dot + 1, self.start, self.id, self, got);
   }
 
   public advanceWith(got: Listed<Tree>): Item {
-    return new Item(name, ents, dot + 1, start, id, [this], got);
+    var self = this;
+    return new ListItem(self.name, self.ents, self.dot + 1, self.start, self.id, self, got);
   }
 
   public advance(): Item {
-    return new Item(name, ents, dot + 1, start, id, [this], []);
+    var self = this;
+    return new EmptyItem(self.name, self.ents, self.dot + 1, self.start, self.id, self);
   }
+} 
 
-  public eq(other: Item): Boolean {
-    return id == other.id && start == other.start && dot == other.dot; 
+export class FirstItem extends Item {
+  public name: String;
+  public ents: List<ItemPart>;
+  public dot: Int;
+  public start: Int;
+  public id: Int;
+
+  public addTreesTo(b: ListBuilder<Tree>): Void {}
+  
+  public toTree(cons: Listed<fn(Listed<Tree>): Listed<Tree>>): Listed<Tree> {
+    return cons[id](noTrees);
+  }
+}
+
+export class EmptyItem extends Item {
+  public name: String;
+  public ents: List<ItemPart>;
+  public dot: Int;
+  public start: Int;
+  public id: Int;
+  private last: Item;
+
+  public addTreesTo(b: ListBuilder<Tree>): Void {
+    last.addTreesTo(b);
+  }
+  
+  public toTree(cons: Listed<fn(Listed<Tree>): Listed<Tree>>): Listed<Tree> {
+    return last.toTree(cons);
+  }
+}
+
+export class ListItem extends Item {
+  public name: String;
+  public ents: List<ItemPart>;
+  public dot: Int;
+  public start: Int;
+  public id: Int;
+  private last: Item;
+  private trees: Listed<Tree>;
+
+  public addTreesTo(b: ListBuilder<Tree>): Void {
+    last.addTreesTo(b);
+    b.addAll(trees);
   }
 
   public toTree(cons: Listed<fn(Listed<Tree>): Listed<Tree>>): Listed<Tree> {
-    var realTrees = new ListBuilder<Tree>();
-    let rec(item: Item): Void {
-      if (item.last.length != 0) {
-        rec(item.last[0]);
-      }
-      realTrees.addAll(item.trees);
-    }
-    rec(this);
-    for (var i = dot; i < ents.length; i++) {
-      var ent = ents[i];
-      if (ent.isTest()) {
-        realTrees.add(new MissingToken());
-      } else {
-        realTrees.add(new MissingTree(ent.name()));
-      }
-    }
-    return cons[id](realTrees);
+    var b = new ListBuilder<Tree>();
+    addTreesTo(b);
+    return cons[id](b);
+  }
+}
+
+export class TreeItem extends Item {
+  public name: String;
+  public ents: List<ItemPart>;
+  public dot: Int;
+  public start: Int;
+  public id: Int;
+  private last: Item;
+  private tree: Tree;
+
+  public addTreesTo(b: ListBuilder<Tree>): Void {
+    last.addTreesTo(b);
+    b.add(tree);
+  }
+
+  public toTree(cons: Listed<fn(Listed<Tree>): Listed<Tree>>): Listed<Tree> {
+    var b = new ListBuilder<Tree>();
+    addTreesTo(b);
+    return cons[id](b);
   }
 }

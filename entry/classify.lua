@@ -14,6 +14,7 @@ end
 
 local p = parser.Parser(read(arg[1]))
 for i=2, #arg do
-    local data = p:parse(read(arg[i]))
-    print(tree.format(data))
+    local trees = p:classify(read(arg[i]))
+    print(trees.toString());
 end
+
