@@ -47,7 +47,7 @@ export class EarleyChars {
           var strs = pparts[i].data.split("");
           for (var i = 0; i < strs.length; i++) {
             var c = strs[i];
-            tokens.add(new Token(c, c));
+            tokens.add(new Token(c));
           }
           iparts.add(new ItemPartSet(tokens.toList()));
         } else {
@@ -88,7 +88,7 @@ export class EarleyChars {
     return this;
   }
 
-  public token(type: String): EarleyChars {
+  public token(): EarleyChars {
     let walk(trees: Listed<Tree>): String {
       return trees.join("", fn(t: Tree): String {
         match (t) {
@@ -100,7 +100,7 @@ export class EarleyChars {
     }
     cons[cons.length-1] = fn(items: Listed<Tree>): Listed<Tree> {
       var str = walk(items);
-      var tree: Tree = new Token(type, str);
+      var tree: Tree = new Token(str);
       return [tree];
     };
     return this;
@@ -158,6 +158,28 @@ export class EarleyChars {
       }
     }
     return ret[0];
+  }
+
+  public lex(src: String): Listed<Token> {
+    var got = makeStateSets("__token__");
+    var split = src.split("");
+    var ret = new ListBuilder<Token>();
+    var start = 0;
+    while (start < split.length) {
+      var end = got.token(start, split);
+      if (end == start) {
+        console.log("error: cannot lex: \"${split[start]}\"");
+        return ret;
+      }
+      var j = new ListBuilder<String>();
+      while (start < end) {
+        j.add(split[start++]);
+      }
+      var data = j.join("") { (s);; s };
+      console.log(data);
+      ret.add(new Token(data));
+    }
+    return ret;
   }
 
   public all(start: String, src: String): Listed<Tree> {

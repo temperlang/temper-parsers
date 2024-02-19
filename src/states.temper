@@ -65,6 +65,16 @@ export class StateSet {
   }
 }
 
+let walk(trees: Listed<Tree>): String {
+  return trees.join("", fn(t: Tree): String {
+    match (t) {
+      is Token -> return t.as<Token>().value;
+      is Node -> return walk(t.as<Node>().items);
+      else -> bubble();
+    }
+  });
+}
+
 export class StateSets {
   public nullable: DenseBitVector;
   public byName: Mapped<String, Listed<Rule>>;
@@ -121,21 +131,32 @@ export class StateSets {
     var config = sets[0].config;
     var split = str.split("");
     var len = split.length;
-    var ret = 0;
     for (var i = 0; i < len; i++) {
       var next = new StateSet(config);
-      var c = split[i];
-      process1(sets.length-1, next, new Token(c, c));
+      process1(sets.length-1, next, new Token(split[i]));
       if (next.length == 0) {
         console.log("Error at char#${i.toString()} (char: ${split[i]})");
         return;
       }
-      ret += sets[sets.length-1].clear();
       sets.add(next);
     }
     var next = new StateSet(config);
-    var i = sets.length-1;
-    process1(i, next, new Token("", ""));
-    console.log("${len.toString()} * ${((ret.toFloat64() / len.toFloat64() * 100.0).toInt().toFloat64() / 100.0).toString()}");
+    process1(sets.length-1, next, new Token(""));
+  }
+
+  public token(start: Int, split: List<String>): Int {
+    var firstSet = sets[0];
+    var len = split.length;
+    sets = new ListBuilder<StateSet>();
+    sets.add(firstSet);
+    for (var cur = start; cur < len; cur++) {
+      var next = new StateSet(firstSet.config);
+      process1(sets.length-1, next, new Token(split[cur]));
+      if (next.length == 0) {
+        return cur;
+      }
+      sets.add(next);
+    }
+    return len;
   }
 }

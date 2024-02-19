@@ -2,7 +2,6 @@
 let {...} = import("./earley-tokens");
 let {...} = import("./earley-chars");
 let {...} = import("./tree");
-let {...} = import("./ascii");
 let {...} = import("std/regex");
 
 class Lexer {
@@ -12,18 +11,10 @@ class Lexer {
   public constructor(): Void {
     n = 0;
     earley = new EarleyChars();
-    earley.name("__lexer__").seq().rule("__lexer__").rule("__token__");
-    earley.name("__lexer__").seq();
   }
 
   public lex(src: String): Listed<Token> {
-    var ret = new ListBuilder<Token>();
-    var got = earley.first("__lexer__", src).as<Node>();
-    while (got.items.length == 2) {
-      ret.add(got.items[1].as<Token>());
-      got = got.items[0].as<Node>();
-    }
-    return ret;
+    return earley.lex(src);
   }
 
   public genName(): String {
@@ -31,20 +22,27 @@ class Lexer {
     return "#${n.toString()}";
   }
 
-  public from(node: Node): String | Bubble {
+  public defCharSet(name: String, charSet: String): String {
+    earley.name(name).seq().char(charSet);
+    return name;
+  }
+
+  public from(node: Node): String {
+    var earley = earley;
+    var self = this;
     var name = genName();
     if (node.type == "Select") {
       var rules = new ListBuilder<String>();
       node.forEach { (it);;
-        var got = from(it.as<Node>());
-        earley.name(name).rule(got);
+        var got = self.from(it.as<Node>());
+        earley.name(name).seq().rule(got);
       };
       return name;
     }
     if (node.type == "Sequence") {
       var rules = new ListBuilder<String>();
       node.forEach { (it);;
-        rules.add(from(it.as<Node>()));
+        rules.add(self.from(it.as<Node>()));
       };
       var chain = earley.name(name).seq();
       for (var i = 0; i < rules.length; i++) {
@@ -87,13 +85,13 @@ class Lexer {
       return name;
     }
     console.log("unhandled: /${node.type}/ -> ${node.toString()}");
-    return bubble();
+    return "";
   }
 
-  public def(name: String, node: Node): String | Bubble {
+  public def(name: String, node: Node): String {
     var got = from(node);
     earley.name(name).seq().rule(got);
-    earley.name("__token__").seq().rule(got).token(name);
+    earley.name("__token__").seq().rule(name);
     return name;
   }
 }
@@ -194,9 +192,6 @@ export class Grammar {
           if (names.length == node.items.length) {
             earley.name(name).seq();
             for (var i = 0; i < names.length; i++) {
-              if (i != 0) {
-                earley.rule("__ignores__");
-              }
               earley.rule(names[i]);
             }
             earley.expand();
@@ -209,7 +204,7 @@ export class Grammar {
     if (node.type == "OneOrMore") {
       self.translate(node.items[0]) { (item);;
         earley.name(name)
-          .seq().rule(name).rule("__ignores__").rule(item).expand()
+          .seq().rule(name).rule(item).expand()
           .seq().rule(item).expand();
         cb(name);
       };
@@ -218,7 +213,7 @@ export class Grammar {
     if (node.type == "ZeroOrMore") {
       self.translate(node.items[0]) { (item);;
         earley.name(name)
-          .seq().rule(name).rule("__ignores__").rule(item).expand()
+          .seq().rule(name).rule(item).expand()
           .seq().expand();
         cb(name);
       };
@@ -260,6 +255,10 @@ export class Grammar {
         bubble();
       };
     }
+  }
+
+  public addCharSet(name: String, value: String): Void {
+    earley.name(name).seq().token(lexer.defCharSet(name, value)).ignore();
   }
 
   public addTree(whole: Tree): Void {

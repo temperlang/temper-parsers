@@ -3,6 +3,7 @@
 let {...} = import("./larkish");
 let {...} = import("./grammar");
 let {...} = import("./tree");
+let {...} = import("./ascii");
 
 var larky = larkish();
 
@@ -12,6 +13,13 @@ export class Parser {
   public constructor(src: String): Void {
     grammar = new Grammar();
     var tree = larky.first("Grammar", src);
+    grammar.addCharSet("RAW_ALPHA_UNDER", "${alpha}_");
+    grammar.addCharSet("RAW_ALNUM_UNDER", "${alnum}_");
+    grammar.addCharSet("RAW_STRING_BODY_BASE", stringBodyBase);
+    grammar.addCharSet("RAW_BACKSLASH", stringBodyBase);
+    grammar.addCharSet("RAW_WHITESPACE", "\t\r\n ");
+    grammar.addCharSet("RAW_DOUBLE_QUOTE", "\" ");
+    grammar.addCharSet("RAW_ASCII", "\" ");
     grammar.addTree(tree);
   }
 

@@ -147,8 +147,8 @@ else: "else" "{" block_body "}"
 fn_expr: "fn" fn_expr_type "{" block_body "}"
 fn_expr_type: "(" (maybe_typed_param ",")* maybe_typed_param? ")" return_type?
 
-string: "'" ("${" expr "}" | STRING_BODY)* "'"
-string: DOUBLE_QUOTE_IGNORE ("${" expr "}" | STRING_BODY)* DOUBLE_QUOTE_IGNORE
+string: #' ("${" expr "}" | (RAW_STRING_BODY_BASE | ESCAPE)* )* #'
+string: #" ("${" expr "}" | (RAW_STRING_BODY_BASE | ESCAPE)* )* #"
 
 array: "[" (expr ",")* expr? "]"
 
@@ -174,14 +174,18 @@ int: INT
 
 float: FLOAT
 
-ident: CNAME
+ident: NAME
 
-STRING_BODY: STRING_BODY_BASE | BACKSLASH [rtn $'] | BACKSLASH (DOUBLE_QUOTE | BACKSLASH)+
+NAME: RAW_ALPHA_UNDER RAW_ALNUM_UNDER*
+
+ESCAPE: #\ ([rtn $'] | RAW_DOUBLE_QUOTE | RAW_BACKSLASH)
 FLOAT: INT "."! [0123456789]*
 INT: "0"! | [123456789] [0123456789]*
 
 COVARIANT: "out"
 CONTRAVARIANT: "in"
 
-IGNORE: WHITESPACE
-IGNORE: "//" ASCII*
+SPACES: RAW_WHITESPACE+
+COMMENT: "//" RAW_ASCII*
+
+IGNORE: COMMENT | SPACES

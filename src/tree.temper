@@ -4,7 +4,6 @@ export interface Tree {
 }
 
 export class Token extends Tree {
-  public type: String;
   public value: String;
 
   public toString(): String {

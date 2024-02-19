@@ -47,7 +47,7 @@ export class EarleyTokens {
           var strs = pparts[i].data.split("");
           for (var i = 0; i < strs.length; i++) {
             var c = strs[i];
-            tokens.add(new Token(c, c));
+            tokens.add(new Token(c));
           }
           iparts.add(new ItemPartSet(tokens.toList()));
         } else {
@@ -135,7 +135,7 @@ export class EarleyTokens {
         ret.addAll(cur.toTree(cons));
       }
     }
-    return ret.getOr(0, new Token("?", "no match"));
+    return ret.getOr(0, new Token("error: no match"));
   }
 
   public all(start: String, src: String): Listed<Tree> {

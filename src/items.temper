@@ -48,7 +48,7 @@ export class ItemPartSet extends ItemPart {
     var nvals = vals.length;
     for (var i = 0; i < nvals; i++) {
       var cur = vals[i];
-      if (cur.type == t.type) {
+      if (cur.value == t.value) {
         return true;
       }
     }

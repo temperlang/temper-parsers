@@ -37,9 +37,9 @@ export let larkish(): EarleyChars {
     .seq().rule("CharQuotes").rule("StringBody").rule("CharQuotes").alias("String")
     .seq().rule("CharQuotes").rule("StringBody").rule("CharQuotes").rule("CharBang").alias("TokenString")
     .seq().rule("CharOpenSquare").rule("StringBody").rule("CharCloseSquare").alias("CharSet")
-    .seq().rule("CharHashtag").char(ascii).alias("CharSet");
+    .seq().rule("CharHashtag").char(ascii).alias("String");
   ret.name("StringBody")
-    .seq().rule("StringData").token("StringBody");
+    .seq().rule("StringData").token();
   ret.name("StringData")
     .seq().rule("StringData").rule("StringChar").expand()
     .seq().char(stringBody).expand();
@@ -53,7 +53,7 @@ export let larkish(): EarleyChars {
     .seq().rule("Name").rule("Ignore").rule("CharQuestion").alias("ExpandName")
     .seq().rule("Name").alias("Name");
   ret.name("Name")
-    .seq().rule("Letters").token("Name");
+    .seq().rule("Letters").token();
   ret.name("Letters")
     .seq().rule("Letters").char("${alpha}_.").expand()
     .seq().char(alpha).expand();
