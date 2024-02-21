@@ -1,31 +1,30 @@
 
 
-let {...} = import("./earley");
-let {...} = import("./larkish");
 let {...} = import("./grammar");
+let {...} = import("./larkish");
 let {...} = import("./tree");
 
 var larky = larkish();
 
 export class Parser {
-  private earley: Earley;
+  private grammar: Grammar;
 
   public constructor(src: String): Void {
-    var tree = larky.first("Grammar", src);
-    earley = grammar(tree);
+    var tree = larky.earley("Grammar").first(src);
+    grammar = fromTree(tree);
   }
 
   public parse(str: String): Tree {
-    return earley.first("__start__", str);
+    return grammar.earley("__start__").first(str);
   }
 
   public trees(str: String): Listed<Tree> {
-    return earley.trees("__start__", str);
+    return grammar.earley("__start__").trees(str);
   }
 
   public classify(str: String): Node | Null {
     var hashtagCodePoint = "#".codePoints.read();
-    var trees = earley.allTrees(str);
+    var trees = grammar.earley("").allTrees(str);
     var n = -1;
     var best : Node | Null = null;
     for (var i = 0; i < trees.length; i++) {

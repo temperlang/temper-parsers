@@ -11,17 +11,11 @@ export class Token extends Tree {
   }
 }
 
-export class MissingTree extends Tree {
-  public type: String;
+export class Error extends Tree {
+  public msg: String;
 
   public toString(): String {
-    return "?${type}";
-  }
-}
-
-export class MissingToken extends Tree {
-  public toString(): String {
-    return "?";
+    return "(error: ${msg})";
   }
 }
 

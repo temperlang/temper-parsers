@@ -1,10 +1,10 @@
 
-let {...} = import("./earley");
+let {...} = import("./grammar");
 let {...} = import("./tree");
 let {...} = import("./ascii");
 
-export let larkish(): Earley {
-  var ret = new Earley();
+export let larkish(): Grammar {
+  var ret = new Grammar();
   ret.name("Grammar")
     .seq().rule("Ignore").rule("Defines").rule("Ignore");
   ret.name("Defines")

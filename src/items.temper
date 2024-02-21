@@ -60,30 +60,62 @@ export class ItemPartSet extends ItemPart {
 
 var noTrees: List<Tree> = [];
 
+let walk(trees: Listed<Tree>): String {
+  return trees.join("", fn(t: Tree): String {
+    match (t) {
+      is Token -> return t.as<Token>().value;
+      is Node -> return walk(t.as<Node>().items);
+      else -> bubble();
+    }
+  });
+}
+
 export interface Item {
   public name: String;
   public ents: List<ItemPart>;
   public dot: Int;
   public start: Int;
   public id: Int;
+  public mode: String;
 
   public addTreesTo(b: ListBuilder<Tree>): Void;
 
-  public toTree(cons: Listed<fn(Listed<Tree>): Listed<Tree>>): Listed<Tree>;
- 
-  public advanceWithSingle(got: Tree): Item {
+  public toTree(): Listed<Tree> {
     var self = this;
-    return new TreeItem(self.name, self.ents, self.dot + 1, self.start, self.id, self, got);
+    var mode = self.mode;
+    var b = new ListBuilder<Tree>();
+    addTreesTo(b);
+    if (mode == "%ignore") {
+      return noTrees;
+    } else if (mode == "%expand") {
+      return b;
+    } else if (mode == "%token") {
+      var t: Tree = new Token(walk(b));
+      return [t];
+    } else {
+      var t: Tree = new Node(mode, b);
+      return [t];
+    }
+  }
+ 
+  public advanceWithChar(got: String): Item {
+    var self = this;
+    return new StringItem(self.name, self.ents, self.dot + 1, self.start, self.id, self.mode, self, got);
+  }
+ 
+  public advanceWithString(len: Int, got: String): Item {
+    var self = this;
+    return new StringItem(self.name, self.ents, self.dot + len, self.start, self.id, self.mode, self, got);
   }
 
-  public advanceWith(got: Listed<Tree>): Item {
+  public advanceWithItem(got: Item): Item {
     var self = this;
-    return new ListItem(self.name, self.ents, self.dot + 1, self.start, self.id, self, got);
+    return new ItemItem(self.name, self.ents, self.dot + 1, self.start, self.id, self.mode, self, got);
   }
 
   public advance(): Item {
     var self = this;
-    return new EmptyItem(self.name, self.ents, self.dot + 1, self.start, self.id, self);
+    return new EmptyItem(self.name, self.ents, self.dot + 1, self.start, self.id, self.mode, self);
   }
 } 
 
@@ -93,69 +125,69 @@ export class FirstItem extends Item {
   public dot: Int;
   public start: Int;
   public id: Int;
+  public mode: String;
 
   public addTreesTo(b: ListBuilder<Tree>): Void {}
-  
-  public toTree(cons: Listed<fn(Listed<Tree>): Listed<Tree>>): Listed<Tree> {
-    return cons[id](noTrees);
-  }
 }
 
-export class EmptyItem extends Item {
+class EmptyItem extends Item {
   public name: String;
   public ents: List<ItemPart>;
   public dot: Int;
   public start: Int;
   public id: Int;
+  public mode: String;
   private last: Item;
 
   public addTreesTo(b: ListBuilder<Tree>): Void {
     last.addTreesTo(b);
   }
-  
-  public toTree(cons: Listed<fn(Listed<Tree>): Listed<Tree>>): Listed<Tree> {
-    return last.toTree(cons);
-  }
 }
 
-export class ListItem extends Item {
+class ItemItem extends Item {
   public name: String;
   public ents: List<ItemPart>;
   public dot: Int;
   public start: Int;
   public id: Int;
+  public mode: String;
   private last: Item;
-  private trees: Listed<Tree>;
+  private item: Item;
 
   public addTreesTo(b: ListBuilder<Tree>): Void {
-    last.addTreesTo(b);
-    b.addAll(trees);
-  }
-
-  public toTree(cons: Listed<fn(Listed<Tree>): Listed<Tree>>): Listed<Tree> {
-    var b = new ListBuilder<Tree>();
-    addTreesTo(b);
-    return cons[id](b);
+    var mode = item.mode;
+    if (mode == "%ignore") {
+      last.addTreesTo(b);
+    } else {
+      var ret = last.addTreesTo(b);
+      if (mode == "%expand") {
+        item.addTreesTo(b);
+      } else if (mode == "%token") {
+        var bb = new ListBuilder<Tree>();
+        item.addTreesTo(bb);
+        b.add(new Token(walk(bb)));
+      } else {
+        var bb = new ListBuilder<Tree>();
+        item.addTreesTo(bb);
+        var t: Tree = new Node(mode, bb);
+        b.add(t);
+      }
+    }
   }
 }
 
-export class TreeItem extends Item {
+class StringItem extends Item {
   public name: String;
   public ents: List<ItemPart>;
   public dot: Int;
   public start: Int;
   public id: Int;
+  public mode: String;
   private last: Item;
-  private tree: Tree;
+  private str: String;
 
   public addTreesTo(b: ListBuilder<Tree>): Void {
     last.addTreesTo(b);
-    b.add(tree);
-  }
-
-  public toTree(cons: Listed<fn(Listed<Tree>): Listed<Tree>>): Listed<Tree> {
-    var b = new ListBuilder<Tree>();
-    addTreesTo(b);
-    return cons[id](b);
+    b.add(new Token(str));
   }
 }

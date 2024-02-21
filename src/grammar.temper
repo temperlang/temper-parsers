@@ -1,10 +1,19 @@
 
-let {...} = import("./earley");
-let {...} = import("./tree");
-let {...} = import("./ascii");
+let {...} = import("./tree.temper");
+let {...} = import("./rules.temper");
+let {...} = import("./earley.temper");
+let {...} = import("./items.temper");
+let {...} = import("./ascii.temper");
 
-export let grammar(whole: Tree): Earley {
-  var earley = new Earley();
+export class Then {
+  public type: String;
+  public data: String;
+}
+
+var noThen = new Then("none", "");
+
+export let fromTree(whole: Tree): Grammar {
+  var earley = new Grammar();
 
   var base = "";
   var term: Boolean = false;
@@ -14,161 +23,145 @@ export let grammar(whole: Tree): Earley {
     return "${base}#${n.toString()}";
   }
 
-  let translateNode(node: Node, cb: fn(String): Void): Void {
+  var names = new MapBuilder<String, String>();
+  let translateNode(node: Node): Then  {
     if (node.type == "Grammar") {
       node.forEach { (tree);;
-        translate(tree) { (name);; };
+        translate(tree);
       };
-      cb("");
-      return;
+      return noThen;
     }
     if (node.type == "AliasDefine") {
       var alias = node.items[2].as<Token>().value;
-      var name = node.items[0].as<Token>().value;
-      term = name.codePoints.read() <= "Z".codePoints.read();
-      translate(node.items[1]) { (item);;
-        earley.name(name).seq().rule(item);
-        if (term) {
-          earley.token();
-        } else {
-          earley.alias(alias);
-        }
-        cb("");
-      };
-      return;
+      base = node.items[0].as<Token>().value;
+      term = base.codePoints.read() <= "Z".codePoints.read();
+      var item = translate(node.items[1]);
+      earley.name(base).seq().then(item);
+      if (term) {
+        earley.token();
+      } else {
+        earley.alias(alias);
+      }
+      return noThen;
     }
     if (node.type == "Define") {
       var name = node.items[0].as<Node>();
-      var base = name.items[0].as<Token>().value;
+      base = name.items[0].as<Token>().value;
       var expand = name.type == "ExpandName";
       term = base.codePoints.read() <= "Z".codePoints.read();
-      translate(node.items[1]) { (item);;
-        earley.name(base).seq().rule(item);
-        if (expand) {
-          earley.expand();
-        }
-        if (term) {
-          earley.token();
-        }
-        cb("");
-      };
-      return;
+      var item = translate(node.items[1]);
+      earley.name(base).seq().then(item);
+      if (expand) {
+        earley.expand();
+      }
+      if (term) {
+        earley.token();
+      }
+      return noThen;
     }
     if (node.type == "Rule") {
-      var name = node.items[0].as<Token>().value;
-      cb(name);
-      return;
+      return new Then("rule", node.items[0].as<Token>().value);
     }
     if (node.type == "Select") {
       var name = genName();
-      var names = new ListBuilder<String>();
+      var names = new ListBuilder<Then>();
       node.forEach { (tree);;
-        translate(tree) { (item);;
-          names.add(item);
-          if (names.length == node.items.length) {
-            earley.name(name);
-            for (var i = 0; i < names.length; i++) {
-              earley.seq().rule(names[i]).expand();
-            }
-            cb(name);
-          }
-        };
+        names.add(translate(tree));
       };
-      return;
+      earley.name(name);
+      for (var i = 0; i < names.length; i++) {
+        earley.seq().then(names[i]).expand();
+      }
+      return new Then("rule", name);
     }
     if (node.type == "Sequence") {
       var name = genName();
-      var names = new ListBuilder<String>();
+      var names = new ListBuilder<Then>();
       node.forEach { (tree);;
-        translate(tree) { (item);;
-          names.add(item);
-          if (names.length == node.items.length) {
-            earley.name(name).seq();
-            for (var i = 0; i < names.length; i++) {
-              if (i != 0) {
-                if (!term) {
-                  earley.rule("__ignores__");
-                }
-              }
-              earley.rule(names[i]);
-            }
-            earley.expand();
-            cb(name);
-          }
-        };
+        names.add(translate(tree));
       };
-      return;
+      earley.name(name).seq();
+      for (var i = 0; i < names.length; i++) {
+        if (i != 0) {
+          if (!term) {
+            earley.rule("__ignores__");
+          }
+        }
+        earley.then(names[i]);
+      }
+      earley.expand();
+      return new Then("rule", name);
     }
     if (node.type == "OneOrMore") {
       var name = genName();
-      translate(node.items[0]) { (item);;
-        earley.name(name);
-        if (!term) {
-          earley.seq().rule(name).rule("__ignores__").rule(item).expand();
-        } else {
-          earley.seq().rule(name).rule(item).expand();
-        }
-        earley.seq().rule(item).expand();
-        cb(name);
-      };
-      return;
+      var item = translate(node.items[0]);
+      earley.name(name);
+      if (!term) {
+        earley.seq().rule(name).rule("__ignores__").then(item).expand();
+      } else {
+        earley.seq().rule(name).then(item).expand();
+      }
+      earley.seq().then(item).expand();
+      return new Then("rule", name);
     }
     if (node.type == "ZeroOrMore") {
       var name = genName();
-      translate(node.items[0]) { (item);;
-        earley.name(name);
-        if (!term) {
-          earley.seq().rule(name).rule("__ignores__").rule(item).expand();
-        } else {
-          earley.seq().rule(name).rule(item).expand();
-        }
-        earley.seq().expand();
-        cb(name);
-      };
-      return;
+      var item = translate(node.items[0]);
+      earley.name(name);
+      if (!term) {
+        earley.seq().rule(name).rule("__ignores__").then(item).expand();
+      } else {
+        earley.seq().rule(name).then(item).expand();
+      }
+      earley.seq().expand();
+      return new Then("rule", name);
     }
     if (node.type == "ZeroOrOne") {
       var name = genName();
-      translate(node.items[0]) { (item);;
-        earley.name(name);
-        earley.seq().rule(item).expand();
-        earley.seq().expand();
-        cb(name);
-      };
-      return;
+      var item = translate(node.items[0]);
+      earley.name(name);
+      earley.seq().then(item).expand();
+      earley.seq().expand();
+      return new Then("rule", name);
     }
     if (node.type == "CharSet") {
-      var name = genName();
-      earley.name(name).seq().char(node.items[0].as<Token>().value).token();
-      cb(name);
-      return;
+      return new Then("char", node.items[0].as<Token>().value);
     }
     if (node.type == "String") {
-      var name = genName();
-      earley.name(name).seq().str(node.items[0].as<Token>().value).ignore();
-      cb(name);
-      return;
+      var str = node.items[0].as<Token>().value;
+      names[str] orelse do {
+        var name = genName();
+        earley.name(name).seq().str(str).ignore();
+        names[str] = name;
+      };
+      return new Then("rule", names[str]);
     }
     if (node.type == "TokenString") {
-      var name = genName();
-      earley.name(name).seq().str(node.items[0].as<Token>().value).token();
-      cb(name);
-      return;
+      var str = node.items[0].as<Token>().value;
+      names[str] orelse do {
+        var name = genName();
+        earley.name(name).seq().str(str).expand();
+        names[str] = name;
+      };
+      return new Then("rule", names[str]);
     }
     console.log("unhandled: /${node.type}/ -> ${node.toString()}");
     bubble();
+    return noThen;
   }
 
-  let translate(tree: Tree, cb: fn(String): Void): Void {
+  let translate(tree: Tree): Then {
     match (tree) {
-      is Node -> translateNode(tree.as<Node>(), cb);
+      is Node -> return translateNode(tree.as<Node>());
       else -> do {
         console.log("unhandled: ${tree.toString()}");
+        bubble();
+        return new Then("none", "");
       };
     }
   }
 
-  translate(whole) { (s);; };
+  translate(whole);
 
   earley.name("__start__").seq().rule("__ignores__").rule("start").rule("__ignores__").expand();
   earley.name("__ignores__").seq().rule("__ignores__").rule("ignore").ignore();
@@ -183,3 +176,128 @@ export let grammar(whole: Tree): Earley {
   return earley;
 }
 
+export class Grammar {
+  private rname: String;
+  private parts: ListBuilder<ListBuilder<RulePart>>;
+  private rules: Rules;
+  private nid: Int;
+  private maxDot: Int;
+  private init: String; 
+  private cons: ListBuilder<String>;
+
+  public constructor(): Void {
+    rname = "";
+    parts = new ListBuilder<ListBuilder<RulePart>>();
+    rules = new Rules();
+    nid = 0;
+    maxDot = 0;
+    cons = new ListBuilder<String>();
+  }
+
+  public earley(start: String): Earley {
+    var rules = build();
+    var found = if (start != "") {
+      rules.byName[start]
+    } else {
+      rules.rules.toList()
+    };
+    var config = new StateConfig(nid, maxDot);
+    var firstSet = new EarleyStateSet(config);
+    for (var i = 0; i < found.length; i++) {
+      firstSet.add(found[i].toItem(0));
+    }
+    return new Earley(start, rules.nullable, firstSet, rules.byName);
+  }
+
+  public name(s: String): Grammar {
+    for (var i = 0; i < parts.length; i++) {
+      var pparts = parts[i];
+      var iparts = new ListBuilder<ItemPart>();
+      for (var i = 0; i < pparts.length; i++) {
+        if (pparts[i].isString) {
+          iparts.add(new ItemPartSet(pparts[i].data.split("")));
+        } else {
+          iparts.add(new ItemPartItem(pparts[i].data));
+        }
+      }
+      if (iparts.length > maxDot) {
+        maxDot = iparts.length;
+      }
+      rules.add(new Rule(rname, parts[i].toList(), nid++, iparts.toList(), cons[i]));
+    }
+    cons = new ListBuilder<String>();
+    rname = s;
+    parts = new ListBuilder<ListBuilder<RulePart>>();
+    return this;
+  }
+
+  public seq(): Grammar {
+    parts.add(new ListBuilder<RulePart>());
+    cons.add(rname);
+    return this;
+  }
+
+  public ignore(): Grammar {
+    cons[cons.length-1] = "%ignore";
+    return this;
+  }
+
+  public expand(): Grammar {
+    cons[cons.length-1] = "%expand";
+    return this;
+  }
+
+  public token(): Grammar {
+    cons[cons.length-1] = "%token";
+    return this;
+  }
+
+  public alias(aliasName: String): Grammar {
+    cons[cons.length-1] = aliasName;
+    return this;
+  }
+
+  public then(val: Then): Grammar {
+    if (val.type == "str") {
+      return str(val.data);
+    }
+    if (val.type == "char") {
+      return char(val.data);
+    }
+    if (val.type == "rule") {
+      return rule(val.data);
+    }
+    return this;
+  }
+
+  public str(seq: String): Grammar {
+    var split = seq.split("");
+    for (var i = 0; i < split.length; i++) {
+      parts[parts.length-1].add(new RulePart(true, split[i]));
+    }
+    return this;
+  }
+
+  public char(chr: String): Grammar {
+    parts[parts.length-1].add(new RulePart(true, chr));
+    return this;
+  }
+
+  public rule(xname: String): Grammar {
+    parts[parts.length-1].add(new RulePart(false, xname));
+    return this;
+  }
+
+  public build(): Rules {
+    name("");
+    var got = rules.build();
+    for (var i = 0; i < got.length; i++) {
+      console.log("undefined: ${got[i]}");
+    }
+    return rules;
+  }
+
+  public toString(): String {
+    return build().toString();
+  }
+}

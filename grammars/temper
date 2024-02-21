@@ -35,8 +35,8 @@ var_decl_no_semi: var_decl_class ident "=" type? -> type_alias
 destructure: "{" (ident ",")* ident? "}"
 destructure_ellipsis: "{" "..." "}"
 
-class_def: class_class "class" ident type_params? type_extends? "{" block_body "}"
-interface_def: class_class "interface" ident type_params? type_extends? "{" block_body "}"
+class_def: class_class? "class" ident type_params? type_extends? "{" block_body "}"
+interface_def: class_class? "interface" ident type_params? type_extends? "{" block_body "}"
 
 func_decl_class: var_class -> func_class
 func_decl: func_decl_class ident type_params? func_type ";"
@@ -180,7 +180,7 @@ STRING_BODY: (RAW_STRING_BODY_BASE | ESCAPE)*
 
 NAME: RAW_ALPHA_UNDER RAW_ALNUM_UNDER*
 
-ESCAPE: #\ ([rtn $'] | #" | #\)
+ESCAPE: #\ ([rtn $'] | #0 | #" | #\)
 FLOAT: INT "."! [0123456789]*
 INT: "0"! | [123456789] [0123456789]*
 

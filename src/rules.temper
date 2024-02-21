@@ -20,6 +20,7 @@ export class Rule {
   public parts: List<RulePart>;
   public id: Int;
   public iparts: List<ItemPart>;
+  public mode: String;
 
   public toString(): String {
     var build = new ListBuilder<String>();
@@ -32,7 +33,7 @@ export class Rule {
   }
 
   public toItem(at: Int): Item {
-    return new FirstItem(name, iparts, 0, at, id);
+    return new FirstItem(name, iparts, 0, at, id, mode);
   }
 }
 

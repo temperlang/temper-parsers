@@ -1,199 +1,237 @@
 
-let {...} = import("./tree.temper");
-let {...} = import("./rules.temper");
-let {...} = import("./states.temper");
-let {...} = import("./items.temper");
+let {...} = import("./items");
+let {...} = import("./rules");
+let {...} = import("./tree");
+
+export class StateConfig {
+  public numIds: Int;
+  public maxDot: Int;
+}
+
+var emptyItemList: List<Item> = [];
+var emptyItemPart: ItemPart = new ItemPartSet([]);
+
+export class EarleyStateSet {
+  public nexts: MapBuilder<String, ListBuilder<Item>>;
+  public config: StateConfig;
+  private setv: ListBuilder<Item>;
+  private hashes: MapBuilder<Int, Boolean>;
+
+  public constructor(conf: StateConfig) {
+    setv = new ListBuilder<Item>();
+    nexts = new MapBuilder<String, ListBuilder<Item>>();
+    hashes = new MapBuilder<Int, ListBuilder<Item>>();
+    config = conf;
+  }
+
+  public clear(): Int {
+    var len = setv.length;
+    setv = new ListBuilder<Item>();
+    hashes = new MapBuilder<String, ListBuilder<Item>>();
+    return len;
+  }
+
+  public clearReport(): String {
+    var tmp = setv;
+    var s = tmp.join(" & ", fn(s: Item) {
+      return "${s.name}";
+    });
+    return "${tmp.length.toString()}: ${s}";
+  }
+  
+  public add(next: Item): Boolean {
+    var hash
+      = next.id
+      + (next.dot + next.start * config.maxDot) * config.numIds;
+    if (hashes.getOr(hash, false)) {
+      return false;
+    }
+    hashes[hash] = true;
+    var ent = next.ents.getOr(next.dot, emptyItemPart);
+    if (!ent.isTest()) {
+      var at = ent.name(); 
+      var nextv = nexts.getOr(at, new ListBuilder<Item>());
+      if (nextv.length == 0) {
+        nexts[at] = nextv;
+      }
+      nextv.add(next);
+    }
+    setv.add(next);
+    return true;
+  }
+
+  public get(i: Int): Item {
+    return setv[i];
+  }
+
+  public get length(): Int {
+    return setv.length;
+  }
+}
+
+let ord(c: String): Int {
+  return c.codePoints.read();
+}
+
+let idString(s: String): String {
+  return s;
+}
+
+var nonTestItemEntry = new ItemPartItem("does not matter");
 
 export class Earley {
-  private rname: String;
-  private parts: ListBuilder<ListBuilder<RulePart>>;
-  private rules: Rules;
-  private nid: Int;
-  private maxDot: Int;
-  private init: String; 
-  private cons: ListBuilder<fn(Listed<Tree>): Listed<Tree>>;
+  public start: String;
+  public nullable: DenseBitVector;
+  public byName: Mapped<String, Listed<Rule>>;
+  public sets: ListBuilder<EarleyStateSet>;
 
-  public constructor(): Void {
-    rname = "";
-    parts = new ListBuilder<ListBuilder<RulePart>>();
-    rules = new Rules();
-    nid = 0;
-    maxDot = 0;
-    cons = new ListBuilder<fn(Listed<Tree>): Listed<Tree>>();
+  public constructor(s: String, n: DenseBitVector, e: EarleyStateSet, b: Mapped<String, Listed<Rule>>): Void {
+    start = s;
+    nullable = n;
+    byName = b;
+    sets = new ListBuilder<EarleyStateSet>();
+    sets.add(e);
   }
 
-  private makeStateSets(start: String): StateSets {
-    var rules = build();
-    var found = if (start != "") {
-      rules.byName[start]
-    } else {
-      rules.rules.toList()
-    };
-    var config = new StateConfig(nid, maxDot);
-    var firstSet = new StateSet(config);
-    for (var i = 0; i < found.length; i++) {
-      firstSet.add(found[i].toItem(0));
-    }
-    return new StateSets(rules.nullable, firstSet, rules.byName, cons);
-  }
-
-  public name(s: String): Earley {
-    for (var i = 0; i < parts.length; i++) {
-      var pparts = parts[i];
-      var iparts = new ListBuilder<ItemPart>();
-      for (var i = 0; i < pparts.length; i++) {
-        if (pparts[i].isString) {
-          iparts.add(new ItemPartSet(pparts[i].data.split("")));
+  private process1(i: Int, chars: List<String>, codes: List<Int>): Void {
+    var ichar = chars.getOr(i, "\0");
+    var icode = codes.getOr(i, -1);
+    var last = sets[i];
+    var next = sets[i+1];
+    for (var j = 0; j < last.length; j++) {
+      var item = last[j];
+      var itemDot = item.dot;
+      var itemLen = item.ents.length;
+      if (item.dot < itemLen) {
+        var ent = item.ents[itemDot];
+        if (ent.isTest()) {
+          if (ent.check(icode)) {
+            var more = true;
+            var k = 1;
+            while (more) {
+              var nextEnt = item.ents.getOr(k + itemDot, nonTestItemEntry);
+              if (nextEnt.isTest()) {
+                if (nextEnt.check(codes.getOr(i+k, -1))) {
+                  k += 1;
+                } else {
+                  k = 0;
+                  more = false;
+                }
+              } else {
+                more = false;
+              }
+            }
+            if (k == 1) {
+              next.add(item.advanceWithChar(ichar));
+            } else if (k > 1) {
+              var b = new ListBuilder<String>();
+              b.add(ichar);
+              for (var l = 1; l < k; l++) {
+                b.add(chars.getOr(i+l, ""));
+              }
+              var s = b.join("", idString);
+              sets.getOr(i+k, last).add(item.advanceWithString(k, s));
+            }
+          }
         } else {
-          iparts.add(new ItemPartItem(pparts[i].data));
+          var name = ent.name();
+          var found = byName[name];
+          var flen = found.length;
+          var noMagic = true;
+          for (var k = 0; k < flen; k++) {
+            var cur = found[k];
+            var itemFound = cur.toItem(i);
+            last.add(itemFound);
+            if (nullable[cur.id]) {
+              var magic = item.advance();
+              last.add(magic);
+              noMagic = false;
+            }
+          }
+        }
+      } else {
+        var olds = sets[item.start].nexts.getOr(item.name, new ListBuilder<Item>());
+        var olen = olds.length;
+        for (var k = 0; k < olen; k++) {
+          last.add(olds[k].advanceWithItem(item));
         }
       }
-      if (iparts.length > maxDot) {
-        maxDot = iparts.length;
+    }
+  }
+
+  public string(str: String): EarleyStateSet | Bubble {
+    var config = sets[0].config;
+    var chars = str.split("");
+    var codes = chars.map(ord);
+    var len = chars.length;
+    var ret = sets[0];
+    for (var i = 0; i < len; i++) {
+      ret = new EarleyStateSet(config);
+      sets.add(ret);
+    }
+    var num = 0;
+    sets.add(new EarleyStateSet(config));
+    var ln = 1;
+    var col = 1;
+    for (var i = 0; i < len; i++) {
+      if (chars[i] == "\n") {
+        ln += 1;
+        col = 1;
+      } else {
+        col += 1;
       }
-      rules.add(new Rule(rname, parts[i].toList(), nid++, iparts.toList()));
-    }
-    rname = s;
-    parts = new ListBuilder<ListBuilder<RulePart>>();
-    return this;
-  }
-
-  public seq(): Earley {
-    var rnameNow = rname;
-    parts.add(new ListBuilder<RulePart>());
-    cons.add(fn(items: Listed<Tree>): Listed<Tree> {
-      var t: Tree = new Node(rnameNow, items);
-      return [t];
-    });
-    return this;
-  }
-
-  public ignore(): Earley {
-    cons[cons.length-1] = fn(items: Listed<Tree>): Listed<Tree> {
-      return [];
-    };
-    return this;
-  }
-
-  public expand(): Earley {
-    cons[cons.length-1] = fn(items: Listed<Tree>): Listed<Tree> {
-      return items;
-    };
-    return this;
-  }
-
-  public token(): Earley {
-    let walk(trees: Listed<Tree>): String {
-      return trees.join("", fn(t: Tree): String {
-        match (t) {
-          is Token -> return t.as<Token>().value;
-          is Node -> return walk(t.as<Node>().items);
-          else -> bubble();
+      process1(i, chars, codes);
+      var j = i;
+      while (sets[j].length == 0) {
+        if (j == len) {
+          console.log("error at Ln ${ln.toString()}, Col ${col.toString()}");
+          return ret;
         }
-      });
+        j += 1;
+      }
+      num += sets[i].clear();
     }
-    cons[cons.length-1] = fn(items: Listed<Tree>): Listed<Tree> {
-      var t: Tree = new Token(walk(items));
-      return [t];
-    };
-    return this;
+    process1(len, [], []);
+    var heft = num.toFloat64() / len.toFloat64();
+    return ret;
   }
 
-  public alias(aliasName: String): Earley {
-    cons[cons.length-1] = fn(items: Listed<Tree>): Listed<Tree> {
-      var t: Tree = new Node(aliasName, items);
-      return [t];
-    };
-    return this;
-  }
-
-  public str(seq: String): Earley {
-    var split = seq.split("");
-    for (var i = 0; i < split.length; i++) {
-      parts[parts.length-1].add(new RulePart(true, split[i]));
-    }
-    return this;
-  }
-
-  public char(chr: String): Earley {
-    parts[parts.length-1].add(new RulePart(true, chr));
-    return this;
-  }
-
-  public rule(xname: String): Earley {
-    parts[parts.length-1].add(new RulePart(false, xname));
-    return this;
-  }
-
-  public trees(start: String, src: String): Listed<Tree> {
-    var sets = makeStateSets(start);
-    sets.string(src);
+  public trees(src: String): Listed<Tree> {
+    var last = string(src);
     var ret = new ListBuilder<Tree>();
-    var last = sets.sets[sets.sets.length-1];
     for (var i = 0; i < last.length; i++) {
       var cur = last[i];
       if (cur.name == start && cur.start == 0 && cur.dot == cur.ents.length) {
-        ret.addAll(cur.toTree(cons));
+        ret.addAll(cur.toTree());
       }
     }
-    return ret.toList();
+    return ret;
   }
 
-  public first(start: String, src: String): Tree {
-    var sets = makeStateSets(start);
-    sets.string(src);
+  public first(src: String): Tree {
+    var last = string(src) orelse do {
+      return new Error("invalid parse(1)")
+    };
     var ret = new ListBuilder<Tree>();
-    var last = sets.sets[sets.sets.length-1];
     for (var i = 0; i < last.length; i++) {
       var cur = last[i];
       if (cur.name == start && cur.start == 0 && cur.dot == cur.ents.length) {
-        ret.addAll(cur.toTree(cons));
+        ret.addAll(cur.toTree());
       }
     }
-    return ret.getOr(0, new Token("ERROR"));
-  }
-
-  public all(start: String, src: String): Listed<Tree> {
-    var sets = makeStateSets(start);
-    sets.string(src);
-    var ret = new ListBuilder<Tree>();
-    for (var i = 0; i < sets.sets.length; i++) {
-      var last = sets.sets[i];
-      for (var j = 0; j < last.length; j++) {
-        var cur = last[j];
-        if (cur.name == start && cur.dot == cur.ents.length) {
-          ret.addAll(cur.toTree(cons));
-        }
-      }
-    }
-    return ret.toList();
+    return ret.getOr(0, new Error("invalid parse(2)"));
   }
 
   public allTrees(src: String): Listed<Tree> {
-    var sets = makeStateSets("");
-    sets.string(src);
+    var last = string(src);
     var ret = new ListBuilder<Tree>();
-    var last = sets.sets[sets.sets.length-1];
     for (var i = 0; i < last.length; i++) {
       var cur = last[i];
       if (cur.start == 0 && cur.dot == cur.ents.length) {
-        var trees = cur.toTree(cons);
+        var trees = cur.toTree();
         ret.add(new Node(cur.name, trees));
       }
     }
-    return ret.toList();
-  }
-
-  public build(): Rules {
-    name("");
-    var got = rules.build();
-    for (var i = 0; i < got.length; i++) {
-      console.log("undefined: ${got[i]}");
-    }
-    return rules;
-  }
-
-  public toString(): String {
-    return build().toString();
+    return ret;
   }
 }
