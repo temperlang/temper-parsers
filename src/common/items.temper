@@ -53,8 +53,8 @@ export class ItemPartSet extends ItemPart {
   }
 
   public toString(): String {
-    var joined = vals.join("|") { (s);; s };
-    return "/${joined}/";
+    var joined = vals.join("") { (s);; s };
+    return "[${joined}]";
   }
 }
 
@@ -79,6 +79,23 @@ export interface Item {
   public mode: String;
 
   public addTreesTo(b: ListBuilder<Tree>): Void;
+
+  public toString(): String {
+    var self = this;
+    var parts = self.ents;
+    var strs = new ListBuilder<String>();
+    for (var i = 0; i < parts.length; i++) {
+      if (i == self.dot) {
+        strs.add(".");
+      }
+      strs.add(self.ents[i].toString());
+    }
+    if (parts.length == self.dot) {
+      strs.add(".");
+    }
+    var str = strs.join(" ") {(s);; s};
+    return "${self.name}: ${str} (${self.start.toString()})";
+  }
 
   public toTree(): Listed<Tree> {
     var self = this;

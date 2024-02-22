@@ -77,7 +77,9 @@ export class Rules {
           break;
         } else {
           var got = isNull[part.data] orelse do {
-            unk.add(part.data);
+            if (part.data != "%border") {
+              unk.add(part.data);
+            }
             true
           };
           if (!got) {

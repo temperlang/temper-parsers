@@ -1,0 +1,20 @@
+
+let {...} = import("../common/rules");
+let {...} = import("../common/tree");
+
+class Table {
+
+}
+
+export class Lexer {
+  public constructor(r: Rules): Void {
+
+  }
+
+  public trees(src: String): Listed<Tree> {
+    var tokens = new ListBuilder<Tree>();
+    
+    var tree: Tree = new Node("tokens", tokens);
+    return [tree];
+  }
+}

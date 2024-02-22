@@ -1,6 +1,6 @@
 
-let {...} = import("./grammar");
-let {...} = import("./tree");
+let {...} = import("../common/grammar");
+let {...} = import("../common/tree");
 let {...} = import("./ascii");
 
 export let larkish(): Grammar {
@@ -53,6 +53,7 @@ export let larkish(): Grammar {
     .seq().rule("Name").rule("Ignore").rule("CharQuestion").alias("ExpandName")
     .seq().rule("Name").alias("Name");
   ret.name("Name")
+    .seq().char("%").rule("Letters").token()
     .seq().rule("Letters").token();
   ret.name("Letters")
     .seq().rule("Letters").char("${alpha}_.").expand()

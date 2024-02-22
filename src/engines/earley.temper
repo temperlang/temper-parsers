@@ -1,9 +1,9 @@
 
-let {...} = import("./items");
-let {...} = import("./rules");
-let {...} = import("./tree");
+let {...} = import("../common/items");
+let {...} = import("../common/rules");
+let {...} = import("../common/tree");
 
-export class StateConfig {
+export class EarleyConfig {
   public numIds: Int;
   public maxDot: Int;
 }
@@ -13,30 +13,35 @@ var emptyItemPart: ItemPart = new ItemPartSet([]);
 
 export class EarleyStateSet {
   public nexts: MapBuilder<String, ListBuilder<Item>>;
-  public config: StateConfig;
+  public config: EarleyConfig;
   private setv: ListBuilder<Item>;
   private hashes: MapBuilder<Int, Boolean>;
 
-  public constructor(conf: StateConfig) {
+  public constructor(conf: EarleyConfig) {
     setv = new ListBuilder<Item>();
     nexts = new MapBuilder<String, ListBuilder<Item>>();
-    hashes = new MapBuilder<Int, ListBuilder<Item>>();
+    hashes = new MapBuilder<Int, Boolean>();
     config = conf;
   }
 
   public clear(): Int {
     var len = setv.length;
     setv = new ListBuilder<Item>();
-    hashes = new MapBuilder<String, ListBuilder<Item>>();
+    hashes = new MapBuilder<Int, Boolean>();
     return len;
   }
 
   public clearReport(): String {
-    var tmp = setv;
-    var s = tmp.join(" & ", fn(s: Item) {
-      return "${s.name}";
-    });
-    return "${tmp.length.toString()}: ${s}";
+    var nums = new MapBuilder<String, Int>();
+    for (var i = 0; i < setv.length; i++) {
+      var c = setv[i];
+      nums[c.name] = nums.getOr(c.name, 0) + 1;
+    }
+    var s = new ListBuilder<String>();
+    nums.forEach { (k: String, v: Int): Void;;
+      s.add("${v.toString()}: ${k}");
+    };
+    return s.join("\n", fn(s: String): String {s});
   }
   
   public add(next: Item): Boolean {
@@ -79,13 +84,25 @@ let idString(s: String): String {
 
 var nonTestItemEntry = new ItemPartItem("does not matter");
 
-export class Earley {
-  public start: String;
-  public nullable: DenseBitVector;
-  public byName: Mapped<String, Listed<Rule>>;
-  public sets: ListBuilder<EarleyStateSet>;
+var wordCharCodes = new DenseBitVector(127);
 
-  public constructor(s: String, n: DenseBitVector, e: EarleyStateSet, b: Mapped<String, Listed<Rule>>): Void {
+for (var i = 65; i <= 90; i++) {
+  wordCharCodes[i] = true;
+}
+
+wordCharCodes[95] = true;
+
+for (var i = 97; i <= 122; i++) {
+  wordCharCodes[i] = true;
+}
+
+export class Earley {
+  private start: String;
+  private nullable: DenseBitVector;
+  private byName: Mapped<String, Listed<Rule>>;
+  private sets: ListBuilder<EarleyStateSet>;
+
+  private constructor(s: String, n: DenseBitVector, e: EarleyStateSet, b: Mapped<String, Listed<Rule>>): Void {
     start = s;
     nullable = n;
     byName = b;
@@ -95,10 +112,13 @@ export class Earley {
 
   private process1(i: Int, chars: List<String>, codes: List<Int>): Void {
     var ichar = chars.getOr(i, "\0");
-    var icode = codes.getOr(i, -1);
+    var icode = codes.getOr(i, 0);
+    var i1code = codes.getOr(i+1, 0);
     var last = sets[i];
     var next = sets[i+1];
-    for (var j = 0; j < last.length; j++) {
+    var inc = 0;
+    for (var j = 0; j < last.length; j += inc) {
+      inc = 1;
       var item = last[j];
       var itemDot = item.dot;
       var itemLen = item.ents.length;
@@ -135,17 +155,29 @@ export class Earley {
           }
         } else {
           var name = ent.name();
-          var found = byName[name];
-          var flen = found.length;
-          var noMagic = true;
-          for (var k = 0; k < flen; k++) {
-            var cur = found[k];
-            var itemFound = cur.toItem(i);
-            last.add(itemFound);
-            if (nullable[cur.id]) {
-              var magic = item.advance();
-              last.add(magic);
-              noMagic = false;
+          if (name == "%border") {
+            if (!wordCharCodes[i1code] || !wordCharCodes[icode]) {
+              if (last.add(item.advance())) {
+                // console.log(item.advance().toTree().join("; ") { (t: Tree): String;; t.toString() });
+                inc = 0;
+              }
+            }
+            // } else {
+            //   // console.log("${chars[i-1] orelse ""} :: ${chars[i]} :: ${chars[i+1] orelse ""}");
+            // }
+          } else {
+            var found = byName[name];
+            var flen = found.length;
+            var noMagic = true;
+            for (var k = 0; k < flen; k++) {
+              var cur = found[k];
+              var itemFound = cur.toItem(i);
+              last.add(itemFound);
+              if (nullable[cur.id]) {
+                var magic = item.advance();
+                last.add(magic);
+                noMagic = false;
+              }
             }
           }
         }
@@ -159,7 +191,7 @@ export class Earley {
     }
   }
 
-  public string(str: String): EarleyStateSet | Bubble {
+  private string(str: String): EarleyStateSet | Bubble {
     var config = sets[0].config;
     var chars = str.split("");
     var codes = chars.map(ord);
@@ -181,6 +213,7 @@ export class Earley {
         col += 1;
       }
       process1(i, chars, codes);
+      // console.log("\n--- ${i.toString()} ---\n${sets[i].clearReport()}");
       var j = i;
       while (sets[j].length == 0) {
         if (j == len) {
@@ -193,6 +226,7 @@ export class Earley {
     }
     process1(len, [], []);
     var heft = num.toFloat64() / len.toFloat64();
+    console.log(heft.toString());
     return ret;
   }
 
@@ -201,35 +235,9 @@ export class Earley {
     var ret = new ListBuilder<Tree>();
     for (var i = 0; i < last.length; i++) {
       var cur = last[i];
+      // console.log("${cur.name}: ${cur.toTree().join(" ", fn(t: Tree): String {t.toString()})}");
       if (cur.name == start && cur.start == 0 && cur.dot == cur.ents.length) {
         ret.addAll(cur.toTree());
-      }
-    }
-    return ret;
-  }
-
-  public first(src: String): Tree {
-    var last = string(src) orelse do {
-      return new Error("invalid parse(1)")
-    };
-    var ret = new ListBuilder<Tree>();
-    for (var i = 0; i < last.length; i++) {
-      var cur = last[i];
-      if (cur.name == start && cur.start == 0 && cur.dot == cur.ents.length) {
-        ret.addAll(cur.toTree());
-      }
-    }
-    return ret.getOr(0, new Error("invalid parse(2)"));
-  }
-
-  public allTrees(src: String): Listed<Tree> {
-    var last = string(src);
-    var ret = new ListBuilder<Tree>();
-    for (var i = 0; i < last.length; i++) {
-      var cur = last[i];
-      if (cur.start == 0 && cur.dot == cur.ents.length) {
-        var trees = cur.toTree();
-        ret.add(new Node(cur.name, trees));
       }
     }
     return ret;

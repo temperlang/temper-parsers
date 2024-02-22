@@ -1,49 +1,26 @@
 
 
-let {...} = import("./grammar");
-let {...} = import("./larkish");
-let {...} = import("./tree");
+let {...} = import("./common/grammar");
+let {...} = import("./common/tree");
+let {...} = import("./larkish/larkish");
 
 var larky = larkish();
 
 export class Parser {
+  public mode: String;
   private grammar: Grammar;
 
   public constructor(src: String): Void {
-    var tree = larky.earley("Grammar").first(src);
-    grammar = fromTree(tree);
+    mode = "earley";
+    var tree = larky.earley("Grammar").trees(src)[0];
+    grammar = toGrammar(tree);
   }
 
-  public parse(str: String): Tree {
-    return grammar.earley("__start__").first(str);
-  }
-
-  public trees(str: String): Listed<Tree> {
-    return grammar.earley("__start__").trees(str);
-  }
-
-  public classify(str: String): Node | Null {
-    var hashtagCodePoint = "#".codePoints.read();
-    var trees = grammar.earley("").allTrees(str);
-    var n = -1;
-    var best : Node | Null = null;
-    for (var i = 0; i < trees.length; i++) {
-      var node = trees[i].as<Node>();
-      if (node.type.codePoints.read() != hashtagCodePoint && node.items.length == 1) {
-        var item = node.items[0];
-        match (item) {
-          is Node -> do {
-            var inode = item.as<Node>();
-            var s = inode.toString();
-            if (n < 0 || s.codePoints.length < n) {
-              n = s.codePoints.length;
-              best = inode;
-            }
-          };
-          else -> do {};
-        }
+  public parse(str: String): Tree | Bubble {
+    match (mode) {
+      "earley" -> return grammar.earley("__start__").trees(str)[0];
+      "lexer" -> return grammar.lexer().trees(str)[0];
+      else -> return bubble();
     }
-    }
-    return best;
   }
 }

@@ -1,0 +1,66 @@
+
+class TableEntry {
+  public n: Int;
+  public vec: DenseBitVector;
+
+  public constructor(ls: Listed<Int>): Void {
+    n = 0;
+    vec = new DenseBitVector(0);
+    for (var i = 0; i < ls; i++) {
+      var item = ls[i];
+      if (item > n) {
+        n = item + 1;
+      }
+      vec[n] = true;
+    }
+  }
+
+  public eq(other: TableEntry): Boolean {
+    for (var i = 0; i < n && i < other.n; i++) {
+      if (vec[i] != other.vec[i]) {
+        return true;
+      }
+    }
+    return false;
+  }
+}
+
+class TableRow {
+  public key: TableEntry;
+  public val: ListBuilder<TableEntry>;
+
+  public constructor(k: Listed<Int>): Void {
+    key = k;
+    val = new ListBuilder<TableEntry>();
+  }
+
+  public set(c: Int, ls: Listed<Int>): Void {
+    while (val.length <= c) {
+      val.add(new TableEntry([]));
+    }
+    val[c] = new TableEntry(ls);
+  }
+}
+
+class StateTable {
+  public data: ListBuilder<TableRow>;
+
+  public constructor(): Void {
+    data = new ListBuilder<TableRow>();
+  }
+
+  public add(key: Listed<Int>): TableRow | Null {
+    var entry = new TableRow(key);
+    for (var i = 0; i < data.length; i++) {
+      if (entry.eq(data[i])) {
+        return null;
+      }
+    }
+    data.add(entry);
+    return entry;
+  }
+}
+
+export class DFA {
+  
+}

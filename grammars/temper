@@ -25,12 +25,11 @@ match_cases: match_case+
 match_case: "is" type "->" stmt -> match_on_type
 match_case: expr "->" stmt -> match_on_value
 
-var_decl_class: var_class -> var_class
-var_decl_no_semi: var_decl_class ident -> var_decl
-var_decl_no_semi: var_decl_class ident ":" type -> typed_var_decl
-var_decl_no_semi: var_decl_class (ident | destructure | destructure_ellipsis) "=" expr? -> var_def
-var_decl_no_semi: var_decl_class ident ":" type "=" expr? -> typed_var_def
-var_decl_no_semi: var_decl_class ident "=" type? -> type_alias
+var_decl_no_semi: var_class ident -> var_decl
+var_decl_no_semi: var_class ident ":" type -> typed_var_decl
+var_decl_no_semi: var_class (ident | destructure | destructure_ellipsis) "=" expr? -> var_def
+var_decl_no_semi: var_class ident ":" type "=" expr? -> typed_var_def
+var_decl_no_semi: var_class ident "=" type? -> type_alias
 
 destructure: "{" (ident ",")* ident? "}"
 destructure_ellipsis: "{" "..." "}"
@@ -38,16 +37,12 @@ destructure_ellipsis: "{" "..." "}"
 class_def: class_class? "class" ident type_params? type_extends? "{" block_body "}"
 interface_def: class_class? "interface" ident type_params? type_extends? "{" block_body "}"
 
-func_decl_class: var_class -> func_class
-func_decl: func_decl_class ident type_params? func_type ";"
-func_decl: func_decl_class "get" ident type_params? func_type ";" -> get_decl
-func_decl: func_decl_class "set" ident type_params? func_type ";" -> set_decl
-func_def: func_decl_class ident type_params? func_type "{" block_body "}"
-func_def: func_decl_class "get" ident type_params? func_type "{" block_body "}" -> get_def
-func_def: func_decl_class "set" ident type_params? func_type "{" block_body "}"  -> set_def
-
-class_class: class_class
-var_class: var_class
+func_decl: func_class ident type_params? func_type ";"
+func_decl: func_class "get" ident type_params? func_type ";" -> get_decl
+func_decl: func_class "set" ident type_params? func_type ";" -> set_decl
+func_def: func_class ident type_params? func_type "{" block_body "}"
+func_def: func_class "get" ident type_params? func_type "{" block_body "}" -> get_def
+func_def: func_class "set" ident type_params? func_type "{" block_body "}"  -> set_def
 
 class_class: "export" -> export
 class_class: "public" -> public
@@ -125,20 +120,20 @@ prefix: "return" expr? -> return
 prefix?: "+" postfix
 prefix?: postfix
 
-postfix: postfix "++" -> post_inc
-postfix: postfix "--" -> post_dec
-postfix: postfix "[" expr "]" -> index
-postfix: postfix "." ident -> prop
-postfix: postfix "." "as" "<" type ">" "(" ")" -> cast
-postfix: postfix "(" (expr ",")* expr? ")" block_arg? -> call
-postfix: postfix block_arg -> call
-postfix: "new" type "(" (expr ",")* expr? ")" -> new
-postfix?: single
+postfix_op: "++" -> post_inc
+postfix_op: "--" -> post_dec
+postfix_op: "[" expr "]" -> post_index
+postfix_op: "." ident -> post_prop
+postfix_op: "." "as" "<" type ">" "(" ")" -> post_cast
+postfix_op: "(" (expr ",")* expr? ")" block_arg? -> post_call
+postfix_op: block_arg -> post_call
+postfix: single postfix_op*
 
 block_arg: "{" (func_type ";;") block_body "}"
 
-single?: ident | fn_expr | if_expr | do_expr | string | int | float | array | "(" expr ")"
+single?: ident | fn_expr | if_expr | do_expr | new_expr | string | int | float | array | "(" expr ")"
 
+new_expr: "new" type "(" (expr ",")* expr? ")" -> post_new
 do_expr: "do" "{" block_body "}"
 if_expr: "if" "(" expr ")" "{" block_body "}" else_if* else?
 else_if: "else" "if" "(" expr ")" "{" block_body "}"
@@ -158,7 +153,9 @@ maybe_typed_param: ident ":" type -> typed_param
 maybe_typed_param: ident -> non_typed_param
 
 type_params: "<" (type_param ",")* type_param? ">"
-type_param: (CONTRAVARIANT | COVARIANT)? type_param_name type_extends?
+type_param: type_param_name type_extends?
+type_param: "in" type_param_name type_extends? -> in_type_param
+type_param: "out" type_param_name type_extends? -> out_type_param
 type_param_name: ident
 type_extends: "extends" type
 
@@ -174,7 +171,7 @@ int: INT
 
 float: FLOAT
 
-ident: NAME
+ident: NAME %border
 
 STRING_BODY: (RAW_STRING_BODY_BASE | ESCAPE)*
 
@@ -184,8 +181,5 @@ ESCAPE: #\ ([rtn $'] | #0 | #" | #\)
 FLOAT: INT "."! [0123456789]*
 INT: "0"! | [123456789] [0123456789]*
 
-COVARIANT: "out"
-CONTRAVARIANT: "in"
-
-ignore: RAW_WHITESPACE+
-ignore: "//" RAW_ASCII*
+IGNORE: RAW_WHITESPACE+
+IGNORE: "//" RAW_ASCII* RAW_NEWLINE

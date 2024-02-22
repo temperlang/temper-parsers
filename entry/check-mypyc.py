@@ -3,9 +3,9 @@
 import logging
 import sys
 
-sys.path.append('temper.out/py/std')
-sys.path.append('temper.out/py/temper-core')
-sys.path.append('temper.out/py/temper-parsers')
+sys.path.append('temper.out/mypyc/std')
+sys.path.append('temper.out/mypyc/temper-core')
+sys.path.append('temper.out/mypyc/temper-parsers')
 
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG, format='%(message)s')
 
@@ -24,3 +24,5 @@ for arg in sys.argv[2:]:
         data = None
     if not isinstance(data, Node):
         print(f'fail {arg}')
+    else:
+        print(f'pass {arg}')
