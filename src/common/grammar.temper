@@ -211,6 +211,7 @@ export class Grammar {
   private maxDot: Int;
   private cons: ListBuilder<String>;
   private lex: Rules;
+  private nonLex: Rules;
   private mLex: ListBuilder<Boolean>;
 
   public constructor(): Void {
@@ -220,6 +221,7 @@ export class Grammar {
     nid = 0;
     maxDot = 0;
     lex = new Rules();
+    nonLex = new Rules();
   }
 
   public lexer(): Lexer {
@@ -256,13 +258,15 @@ export class Grammar {
       firstSet.add(found[i].toItem(0));
     }
     lex.build();
-    // console.log(lex.toString());
     return new LexerEarley(start, rules.nullable, firstSet, rules.byName, new Lexer(lex, rules));
   }
 
   public name(s: String): Grammar {
     for (var i = 0; i < parts.length; i++) {
       var pparts = parts[i];
+      if (pparts.length > maxDot) {
+        maxDot = pparts.length;
+      }
       var iparts = new ListBuilder<ItemPart>();
       for (var i = 0; i < pparts.length; i++) {
         if (pparts[i].isString) {
@@ -271,13 +275,13 @@ export class Grammar {
           iparts.add(new ItemPartItem(pparts[i].data));
         }
       }
-      if (iparts.length > maxDot) {
-        maxDot = iparts.length;
-      }
+
       var rule = new Rule(rname, parts[i].toList(), nid++, iparts.toList(), cons[i], mLex[i]);
-      if (rule.lex) {
+      
+      if (mLex[i]) {
         lex.add(rule);
       }
+
       rules.add(rule);
     }
     cons = new ListBuilder<String>();
