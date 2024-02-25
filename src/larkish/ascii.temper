@@ -6,6 +6,6 @@ export var alpha = "${lowercase}${uppercase}";
 export var alnum = "${alpha}${digits}";
 export var word0 = "${alpha}_";
 export var word1 = "${word0}${digits}";
-export var stringBodyBase = " !#%&()*+,-./${digits}:;<=>?@${uppercase}[]^_`${lowercase}{|}~'";
-export var stringBody = "${stringBodyBase}\$";
+export var stringBodyBase = " !#%&()*+,-./${digits}:;<=>?@${uppercase}[]^_`${lowercase}|~'";
+export var stringBody = "${stringBodyBase}{\$}";
 export var ascii = "${stringBody}\\\"";

@@ -127,7 +127,8 @@ postfix_op: "." ident -> post_prop
 postfix_op: "." "as" "<" type ">" "(" ")" -> post_cast
 postfix_op: "(" (expr ",")* expr? ")" block_arg? -> post_call
 postfix_op: block_arg -> post_call
-postfix: single postfix_op*
+postfix: single postfix_op+
+postfix?: single
 
 block_arg: "{" (func_type ";;") block_body "}"
 
@@ -142,8 +143,8 @@ else: "else" "{" block_body "}"
 fn_expr: "fn" fn_expr_type "{" block_body "}"
 fn_expr_type: "(" (maybe_typed_param ",")* maybe_typed_param? ")" return_type?
 
-string: #' ("${" expr "}" | STRING_BODY )* #'
-string: #" ("${" expr "}" | STRING_BODY )* #"
+string: #' ("${" expr "}" | STRING_BODY | #{ | #})* #'
+string: #" ("${" expr "}" | STRING_BODY | #{ | #})* #"
 
 array: "[" (expr ",")* expr? "]"
 
@@ -171,15 +172,15 @@ int: INT
 
 float: FLOAT
 
-ident: NAME %border
+ident: NAME
 
 STRING_BODY: (RAW_STRING_BODY_BASE | ESCAPE)*
 
 NAME: RAW_ALPHA_UNDER RAW_ALNUM_UNDER*
 
-ESCAPE: #\ ([rtn $'] | #0 | #" | #\)
+ESCAPE: #\ ([rtn $'] | #0 | #" | #\ | #{ | #})
 FLOAT: INT "."! [0123456789]*
 INT: "0"! | [123456789] [0123456789]*
 
-IGNORE: RAW_WHITESPACE+
-IGNORE: "//" RAW_ASCII* RAW_NEWLINE
+IGNORE: RAW_WHITESPACE*
+IGNORE: "//" RAW_ASCII*

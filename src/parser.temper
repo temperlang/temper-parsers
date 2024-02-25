@@ -7,18 +7,19 @@ let {...} = import("./larkish/larkish");
 var larky = larkish();
 
 export class Parser {
-  public mode: String;
+  public var mode: String;
   private grammar: Grammar;
 
   public constructor(src: String): Void {
-    mode = "earley";
-    var tree = larky.earley("Grammar").trees(src)[0];
+    mode = "lexer-earley";
+    var tree = larky.charEarley("Grammar").trees(src)[0];
     grammar = toGrammar(tree);
   }
 
   public parse(str: String): Tree | Bubble {
     match (mode) {
-      "earley" -> return grammar.earley("__start__").trees(str)[0];
+      "earley" -> return grammar.charEarley("__start__").trees(str)[0];
+      "lexer-earley" -> return grammar.lexerEarley("__start__").trees(str)[0];
       "lexer" -> return grammar.lexer().trees(str)[0];
       else -> return bubble();
     }

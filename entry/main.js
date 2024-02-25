@@ -11,6 +11,7 @@ for (let i = 3; i < argv.length; i++) {
     try {
         data = parser.parse(String(readFileSync(argv[i])));
     } catch (e) {
+        console.error(e);
         console.log(`fail ${argv[i]}`);
     }
     if (data != null) {

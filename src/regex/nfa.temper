@@ -1,0 +1,209 @@
+
+let {...} = import("../common/rules");
+let {...} = import("../common/tree");
+
+class Next {
+  public all: ListBuilder<Int>;
+
+  public constructor(): Void {
+    all = new ListBuilder<Int>();
+  }
+
+  public add(state: State): Void {
+    for (var i = 0; i < all.length; i++) {
+      var cur = all[i];
+      if (cur == state.id) {
+        return;
+      }
+    }
+    all.add(state.id);
+  }
+
+  public toString(): String {
+    return all.join(" | ", fn(n: Int): String {
+      return "state${n.toString()}"
+    });
+  }
+}
+
+class State {
+  public rule: Rule | Null;
+  public id: Int;
+  public epsilons: Next;
+  public chars: ListBuilder<Next>;
+
+  public constructor(r: Rule | Null, arg: Int): Void {
+    rule = r;
+    id = arg;
+    epsilons = new Next();
+    chars = new ListBuilder<Next>();
+  }
+
+  public epsilon(state: State): Void {
+    epsilons.add(state);
+  }
+
+  public char(on: Int, state: State): Void {
+    while (on >= chars.length) {
+      chars.add(new Next());
+    }
+    chars[on].add(state);
+  }
+
+  public toString(): String {
+    var builder = new ListBuilder<String>();
+    builder.add("let state${id.toString()}(str: CodePointStringSlice): Void {");
+    builder.add("  var chr = str.read();");
+    builder.add("  var next = str.advance(1);");
+    for (var i = 0; i < chars.length; i++) {
+      var next = chars[i];
+      if (next.all.length != 0) {
+        builder.add("  if (chr == ${i.toString()}) {");
+        for (var j = 0; j < next.all.length; j++) {
+          builder.add("    state${next.all[j].toString()}(next);");
+        }
+        builder.add("  }");
+      }
+    }
+    for (var i = 0; i < epsilons.all.length; i++) {
+      builder.add("  state${epsilons.all[i].toString()}(str);");
+    }
+    builder.add("}");
+    return builder.join("\n", fn(s: String): String {s});
+  }
+}
+
+var noNext = new Next();
+
+export class NFA {
+  private rules: Rules; 
+  private table: ListBuilder<State>;
+  private root: State;
+  private bad: State;
+  private good: State;
+  private none: State;
+
+  public constructor(startRules: Rules, baseRules: Rules): Void {
+    rules = baseRules;
+    table = new ListBuilder<String>();
+    good = alloc(null);
+    bad = alloc(null);
+    root = alloc(null);
+    none = alloc(null);
+
+    for (var i = 0; i < startRules.rules.length; i++) {
+      var rule = startRules.rules[i];
+      var start = alloc(rule);
+      root.epsilon(start);
+      addRuleTo(start, good, rule, new MapBuilder<Int, State>());
+    }
+  }
+
+  public addRuleTo(src: State, dest: State, rule: Rule, done: MapBuilder<Int, State>): Void {
+    if (do {done[rule.id] != none} orelse false) {
+      src.epsilon(done[rule.id]);
+    } else if (rule.name == "%border") {
+      src.epsilon(dest);
+    } else if (rule.parts.length == 0) {
+      src.epsilon(dest);
+    } else {
+      done[rule.id] = src;
+      var cur = src;
+      for (var p = 0; p < rule.parts.length; p++) {
+        var part = rule.parts[p];
+        var next = if (p + 1 == rule.parts.length) {
+          dest
+        } else {
+          alloc(null)
+        };
+        if (part.isString) {
+          var split = part.data.split("");
+          for (var i = 0; i < split.length; i++) {
+            cur.char(split[i].codePoints.read(), next);
+          }
+        } else {
+          var found = rules.byName.getOr(part.data, []);
+          for (var i = 0; i < found.length; i++) {
+            addRuleTo(cur, next, found[i], done);
+          }
+        }
+        cur = next;
+      }
+      done[rule.id] = none;
+    }
+  }
+
+  public alloc(rule: Rule | Null): State {
+    var ret = new State(rule, table.length);
+    table.add(ret);
+    return ret;
+  }
+
+  public toString(): String {
+    return table.join("\n", fn(s: State): String {
+      return s.toString();
+    });
+  }
+
+  public runFrom(state: State, done: ListBuilder<Int>, chrs: Listed<String>, n: Int): Int {
+    if (state == good) {
+      return n;
+    } else if (state != bad && n < chrs.length) {
+      var best = -1;
+      for (var i = 0; i < done.length; i++) {
+        if (done.getOr(i, -1) == state.id) {
+          return -1;
+        }
+      }
+      done.add(state.id);
+      var nexts = state.chars.getOr(chrs.getOr(n, "").codePoints.read(), noNext).all;
+      for (var i = 0; i < nexts.length; i++) {
+        var next = nexts.getOr(i, -1);
+        var state = table.getOr(next, bad);
+        var got = runFrom(state, new ListBuilder<Int>(), chrs, n+1);
+        if (got > best) {
+          best = got;
+        }
+      }
+      for (var i = 0; i < state.epsilons.all.length; i++) {
+        var next = state.epsilons.all.getOr(i, -1);
+        var state = table.getOr(next, bad);
+        var got = runFrom(state, done, chrs, n);
+        if (got > best) {
+          best = got;
+        }
+      }
+      return best;
+    } else {
+      return -1;
+    }
+  }
+
+  public loop(state: State, chrs: Listed<String>, ls: ListBuilder<ListBuilder<Pair<Int, Int>>>): Void {
+    var n = 0;
+    while (n < chrs.length) {
+      var cur = runFrom(state, new ListBuilder<Int>(), chrs, n);
+      if (cur > n) {
+        // console.log("${state.rule.as<Rule>().name}: ${n.toString()} .. ${cur.toString()}");
+        while (ls.length <= n) {
+          ls.add(new ListBuilder<Pair<Int, Int>>());
+        }
+        var got = ls[n];
+        got.add(new Pair<Int, Int>(state.rule.as<Rule>().id, cur));
+        n = cur;
+      } else {
+        n += 1;
+      }
+    }
+  }
+
+  public run(chrs: Listed<String>): ListBuilder<ListBuilder<Pair<Int, Int>>> {
+    var got = new ListBuilder<ListBuilder<Pair<Int, Int>>>();
+    for (var i = 0; i < root.epsilons.all.length; i++) {
+      var next = root.epsilons.all.getOr(i, -1);
+      var state = table.getOr(next, bad);
+      loop(state, chrs, got);
+    }
+    return got;
+  }
+}

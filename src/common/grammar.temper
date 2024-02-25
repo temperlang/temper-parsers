@@ -9,7 +9,7 @@ let {...} = import("../engines/lexer");
 var right = [true, true];
 
 export let toGrammar(whole: Tree): Grammar {
-  var earley = new Grammar();
+  var grammar = new Grammar();
 
   var base = "";
   var term: Boolean = false;
@@ -33,11 +33,10 @@ export let toGrammar(whole: Tree): Grammar {
       term = base.codePoints.read() <= "Z".codePoints.read();
       var item = translate(node.items[1]);
       if (term) {
-        // earley.name(base).seq().rule(item).token();
         console.log("unhandled: alias of token ${node.toString()}");
         bubble();
       } else {
-        earley.name(base).seq().rule(item).alias(alias);
+        grammar.name(base).seq().rule(item).alias(alias);
       }
       return "";
     }
@@ -48,11 +47,11 @@ export let toGrammar(whole: Tree): Grammar {
       term = base.codePoints.read() <= "Z".codePoints.read();
       var item = translate(node.items[1]);
       if (term) {
-        earley.name(base).seq().rule(item).token();
+        grammar.name(base).seq().rule(item).token().mayLex();
       } else {
-        earley.name(base).seq().rule(item);
+        grammar.name(base).seq().rule(item);
         if (expand) {
-          earley.expand();
+          grammar.expand();
         }
       }
       return "";
@@ -66,9 +65,9 @@ export let toGrammar(whole: Tree): Grammar {
       node.forEach { (tree);;
         names.add(translate(tree));
       };
-      earley.name(name);
+      grammar.name(name);
       for (var i = 0; i < names.length; i++) {
-        earley.seq().rule(names[i]).expand();
+        grammar.seq().rule(names[i]).expand();
       }
       return name;
     }
@@ -78,92 +77,95 @@ export let toGrammar(whole: Tree): Grammar {
       node.forEach { (tree);;
         names.add(translate(tree));
       };
-      earley.name(name).seq();
+      grammar.name(name).seq();
       for (var i = 0; i < names.length; i++) {
         if (i != 0) {
           if (!term) {
-            earley.rule("__ignores__");
+            grammar.rule("__ignores__");
           }
         }
-        earley.rule(names[i]);
+        grammar.rule(names[i]);
       }
-      earley.expand();
+      grammar.expand();
       return name;
     }
     if (node.type == "OneOrMore") {
       var name = genName();
       var item = translate(node.items[0]);
-      earley.name(name);
+      grammar.name(name);
       if (right[1]) {
         if (!term) {
-          earley.seq().rule(item).rule("__ignores__").rule(name).expand();
+          grammar.seq().rule(item).rule("__ignores__").rule(name).expand();
         } else {
-          earley.seq().rule(item).rule(name).expand();
+          grammar.seq().rule(item).rule(name).expand();
         }
       } else {
         if (!term) {
-          earley.seq().rule(name).rule("__ignores__").rule(item).expand();
+          grammar.seq().rule(name).rule("__ignores__").rule(item).expand();
         } else {
-          earley.seq().rule(name).rule(item).expand();
+          grammar.seq().rule(name).rule(item).expand();
         }
       }
-      earley.seq().rule(item).expand();
+      grammar.seq().rule(item).expand();
       return name;
     }
     if (node.type == "ZeroOrMore") {
       var name = genName();
       var item = translate(node.items[0]);
-      earley.name(name);
+      grammar.name(name);
       if (right[0]) {
         if (!term) {
-          earley.seq().rule(item).rule("__ignores__").rule(name).expand();
+          grammar.seq().rule(item).rule("__ignores__").rule(name).expand();
         } else {
-          earley.seq().rule(item).rule(name).expand();
+          grammar.seq().rule(item).rule(name).expand();
         }
       } else {
         if (!term) {
-          earley.seq().rule(name).rule("__ignores__").rule(item).expand();
+          grammar.seq().rule(name).rule("__ignores__").rule(item).expand();
         } else {
-          earley.seq().rule(name).rule(item).expand();
+          grammar.seq().rule(name).rule(item).expand();
         }
       }
-      earley.seq().expand();
+      grammar.seq().expand();
       return name;
     }
     if (node.type == "ZeroOrOne") {
       var name = genName();
       var item = translate(node.items[0]);
-      earley.name(name);
-      earley.seq().rule(item).expand();
-      earley.seq().expand();
+      grammar.name(name);
+      grammar.seq().rule(item).expand();
+      grammar.seq().expand();
       return name;
     }
     if (node.type == "CharSet") {
       var name = genName();
-      earley.name(name).seq().char(node.items[0].as<Token>().value).expand();
+      grammar.name(name).seq().char(node.items[0].as<Token>().value).expand();
+      if (!term) {
+        grammar.mayLex();
+      }
       return name;
     }
     if (node.type == "String") {
       var str = node.items[0].as<Token>().value;
       names[str] orelse do {
-        var name = genName();
+        var inner = genName();
+        grammar.name(inner).seq().str(str).token();
         if (!term) {
-          earley.name(name).seq().str(str).ignore();
-        } else {
-          earley.name(name).seq().str(str).ignore();
+          grammar.mayLex();
         }
-        names[str] = name;
+        names[str] = inner;
       };
-      return names[str];
+      var name = genName();
+      grammar.name(name).seq().rule(names[str]).ignore();
+      return name;
     }
     if (node.type == "TokenString") {
       var str = node.items[0].as<Token>().value;
       names[str] orelse do {
         var name = genName();
+        grammar.name(name).seq().str(str).token();
         if (!term) {
-          earley.name(name).seq().str(str).token();
-        } else {
-          earley.name(name).seq().str(str).token();
+          grammar.mayLex();
         }
         names[str] = name;
       };
@@ -187,18 +189,18 @@ export let toGrammar(whole: Tree): Grammar {
 
   translate(whole);
 
-  earley.name("__start__").seq().rule("__ignores__").rule("start").rule("__ignores__").expand();
-  earley.name("__ignores__").seq().rule("__ignores__").rule("IGNORE").ignore();
-  earley.name("__ignores__").seq().ignore();
+  grammar.name("__start__").seq().rule("__ignores__").rule("start").rule("__ignores__").expand();
+  grammar.name("__ignores__").seq().rule("__ignores__").rule("IGNORE").ignore();
+  grammar.name("__ignores__").seq().ignore();
 
-  earley.name("RAW_ASCII").seq().char(ascii).token();
-  earley.name("RAW_NEWLINE").seq().char("\n").token();
-  earley.name("RAW_WHITESPACE").seq().char("\t\r\n ").token();
-  earley.name("RAW_STRING_BODY_BASE").seq().char(stringBodyBase).token();
-  earley.name("RAW_ALPHA_UNDER").seq().char("${alpha}_").token();
-  earley.name("RAW_ALNUM_UNDER").seq().char("${alnum}_").token();
+  grammar.name("RAW_ASCII").seq().char(ascii).token();
+  grammar.name("RAW_NEWLINE").seq().char("\n").token();
+  grammar.name("RAW_WHITESPACE").seq().char("\t\r\n ").token();
+  grammar.name("RAW_STRING_BODY_BASE").seq().char(stringBodyBase).token();
+  grammar.name("RAW_ALPHA_UNDER").seq().char("${alpha}_").token();
+  grammar.name("RAW_ALNUM_UNDER").seq().char("${alnum}_").token();
 
-  return earley;
+  return grammar;
 }
 
 export class Grammar {
@@ -208,6 +210,8 @@ export class Grammar {
   private nid: Int;
   private maxDot: Int;
   private cons: ListBuilder<String>;
+  private lex: Rules;
+  private mLex: ListBuilder<Boolean>;
 
   public constructor(): Void {
     rname = "";
@@ -215,14 +219,16 @@ export class Grammar {
     rules = new Rules();
     nid = 0;
     maxDot = 0;
-    cons = new ListBuilder<String>();
+    lex = new Rules();
   }
 
   public lexer(): Lexer {
-    return new Lexer(build());
+    var r = build();
+    lex.build();
+    return new Lexer(lex, r);
   }
 
-  public earley(start: String): Earley {
+  public charEarley(start: String): Earley {
     var rules = build();
     var found = if (start != "") {
       rules.byName[start]
@@ -234,7 +240,24 @@ export class Grammar {
     for (var i = 0; i < found.length; i++) {
       firstSet.add(found[i].toItem(0));
     }
-    return new Earley(start, rules.nullable, firstSet, rules.byName);
+    return new CharEarley(start, rules.nullable, firstSet, rules.byName);
+  }
+
+  public lexerEarley(start: String): Earley {
+    var rules = build();
+    var found = if (start != "") {
+      rules.byName[start]
+    } else {
+      rules.rules.toList()
+    };
+    var config = new EarleyConfig(nid, maxDot);
+    var firstSet = new EarleyStateSet(config);
+    for (var i = 0; i < found.length; i++) {
+      firstSet.add(found[i].toItem(0));
+    }
+    lex.build();
+    // console.log(lex.toString());
+    return new LexerEarley(start, rules.nullable, firstSet, rules.byName, new Lexer(lex, rules));
   }
 
   public name(s: String): Grammar {
@@ -251,9 +274,14 @@ export class Grammar {
       if (iparts.length > maxDot) {
         maxDot = iparts.length;
       }
-      rules.add(new Rule(rname, parts[i].toList(), nid++, iparts.toList(), cons[i]));
+      var rule = new Rule(rname, parts[i].toList(), nid++, iparts.toList(), cons[i], mLex[i]);
+      if (rule.lex) {
+        lex.add(rule);
+      }
+      rules.add(rule);
     }
     cons = new ListBuilder<String>();
+    mLex = new ListBuilder<Boolean>();
     rname = s;
     parts = new ListBuilder<ListBuilder<RulePart>>();
     return this;
@@ -262,6 +290,7 @@ export class Grammar {
   public seq(): Grammar {
     parts.add(new ListBuilder<RulePart>());
     cons.add(rname);
+    mLex.add(false);
     return this;
   }
 
@@ -272,6 +301,11 @@ export class Grammar {
 
   public expand(): Grammar {
     cons[cons.length-1] = "%expand";
+    return this;
+  }
+
+  public mayLex(): Grammar {
+    mLex[mLex.length-1] = true;
     return this;
   }
 

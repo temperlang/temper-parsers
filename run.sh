@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 
 time='time -f"%es %Mk %P"'
-args='grammars/temper src/*.temper'
+args="grammars/temper $(find src -name '*.temper' | xargs echo)"
 
 which node > /dev/null  && echo "--- node ---" && sh -c "$time node entry/main.js $args > out.node.txt"
 which bun > /dev/null  && echo "--- bun ---" && sh -c "$time bun entry/main.js $args > out.bun.txt"

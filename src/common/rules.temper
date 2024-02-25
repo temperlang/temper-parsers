@@ -21,6 +21,7 @@ export class Rule {
   public id: Int;
   public iparts: List<ItemPart>;
   public mode: String;
+  public lex: Boolean;
 
   public toString(): String {
     var build = new ListBuilder<String>();

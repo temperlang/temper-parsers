@@ -2,6 +2,7 @@
 let {...} = import("../common/items");
 let {...} = import("../common/rules");
 let {...} = import("../common/tree");
+let {...} = import("./lexer");
 
 export class EarleyConfig {
   public numIds: Int;
@@ -96,13 +97,17 @@ for (var i = 97; i <= 122; i++) {
   wordCharCodes[i] = true;
 }
 
-export class Earley {
+export interface Earley {
+  public trees(src: String): Listed<Tree>;
+}
+
+export class CharEarley extends Earley {
   private start: String;
   private nullable: DenseBitVector;
   private byName: Mapped<String, Listed<Rule>>;
   private sets: ListBuilder<EarleyStateSet>;
 
-  private constructor(s: String, n: DenseBitVector, e: EarleyStateSet, b: Mapped<String, Listed<Rule>>): Void {
+  public constructor(s: String, n: DenseBitVector, e: EarleyStateSet, b: Mapped<String, Listed<Rule>>): Void {
     start = s;
     nullable = n;
     byName = b;
@@ -157,14 +162,8 @@ export class Earley {
           var name = ent.name();
           if (name == "%border") {
             if (!wordCharCodes[i1code] || !wordCharCodes[icode]) {
-              if (last.add(item.advance())) {
-                // console.log(item.advance().toTree().join("; ") { (t: Tree): String;; t.toString() });
-                inc = 0;
-              }
+              last.add(item.advance());
             }
-            // } else {
-            //   // console.log("${chars[i-1] orelse ""} :: ${chars[i]} :: ${chars[i+1] orelse ""}");
-            // }
           } else {
             var found = byName[name];
             var flen = found.length;
@@ -213,7 +212,6 @@ export class Earley {
         col += 1;
       }
       process1(i, chars, codes);
-      // console.log("\n--- ${i.toString()} ---\n${sets[i].clearReport()}");
       var j = i;
       while (sets[j].length == 0) {
         if (j == len) {
@@ -225,8 +223,6 @@ export class Earley {
       num += sets[i].clear();
     }
     process1(len, [], []);
-    var heft = num.toFloat64() / len.toFloat64();
-    console.log(heft.toString());
     return ret;
   }
 
@@ -235,7 +231,119 @@ export class Earley {
     var ret = new ListBuilder<Tree>();
     for (var i = 0; i < last.length; i++) {
       var cur = last[i];
-      // console.log("${cur.name}: ${cur.toTree().join(" ", fn(t: Tree): String {t.toString()})}");
+      if (cur.name == start && cur.start == 0 && cur.dot == cur.ents.length) {
+        ret.addAll(cur.toTree());
+      }
+    }
+    return ret;
+  }
+}
+
+export class LexerEarley extends Earley {
+  private start: String;
+  private nullable: DenseBitVector;
+  private byName: Mapped<String, Listed<Rule>>;
+  private sets: ListBuilder<EarleyStateSet>;
+  private lexer: Lexer;
+
+  public constructor(s: String, n: DenseBitVector, e: EarleyStateSet, b: Mapped<String, Listed<Rule>>, l: Lexer): Void {
+    start = s;
+    nullable = n;
+    byName = b;
+    sets = new ListBuilder<EarleyStateSet>();
+    sets.add(e);
+    lexer = l;
+  }
+
+  private process1(i: Int, chars: List<String>, codes: List<Int>): Int {
+    var last = sets[i];
+    var start = last.length;
+    for (var j = 0; j < last.length; j++) {
+      var item = last[j];
+      var itemDot = item.dot;
+      var itemLen = item.ents.length;
+      if (item.dot < itemLen) {
+        var ent = item.ents[itemDot];
+        if (!ent.isTest()) {
+          var name = ent.name();
+          if (name != "%border") {
+            var found = byName[name];
+            var flen = found.length;
+            var noMagic = true;
+            for (var k = 0; k < flen; k++) {
+              var cur = found[k];
+              var itemFound = cur.toItem(i);
+              last.add(itemFound);
+              if (nullable[cur.id]) {
+                var magic = item.advance();
+                last.add(magic);
+                noMagic = false;
+              }
+            }
+          }
+        }
+      } else {
+        var olds = sets[item.start].nexts.getOr(item.name, new ListBuilder<Item>());
+        var olen = olds.length;
+        for (var k = 0; k < olen; k++) {
+          last.add(olds[k].advanceWithItem(item));
+        }
+      }
+    }
+    return last.length - start;
+  }
+
+  private string(str: String): EarleyStateSet | Bubble {
+    var config = sets[0].config;
+    var chars = str.split("");
+    var codes = chars.map(ord);
+    var len = chars.length;
+    for (var i = 1; i <= len; i++) {
+      sets.add(new EarleyStateSet(config));
+    }
+    var all = lexer.nfa.run(chars);
+    for (var i = 0; i < all.length; i++) {
+      var sub = all[i];
+      for (var j = 0; j < sub.length; j++) {
+        var vj = sub[j];
+        var s = new ListBuilder<String>();
+        for (var k = i; k < vj.value; k++) {
+          s.add(chars[k]);
+        }
+        var s = s.join("", idString);
+        var t = new Token(s);
+        var item = lexer.lookup(vj.key).toItem(i).asOnlyWith(t);
+        // console.log("[${i.toString()} .. ${vj.value.toString()}] = ${s}")
+        sets[vj.value].add(item);
+      }
+    }
+    var num = 0;
+    var ln = 1;
+    var col = 1;
+    var last = [1, 1];
+    for (var i = 0; i < len; i++) {
+      if (i != 0) {
+        num += sets[i - 1].clear();
+      }
+      if (chars[i] == "\n") {
+        ln += 1;
+        col = 1;
+      } else {
+        col += 1;
+      }
+      var added = process1(i, chars, codes);
+      if (added != 0) {
+        last = [ln, col, i];
+      }
+    }
+    return sets[sets.length - 2];
+  }
+
+  public trees(src: String): Listed<Tree> {
+    var last = string(src);
+    var ret = new ListBuilder<Tree>();
+    for (var i = 0; i < last.length; i++) {
+      var cur = last[i];
       if (cur.name == start && cur.start == 0 && cur.dot == cur.ents.length) {
         ret.addAll(cur.toTree());
       }

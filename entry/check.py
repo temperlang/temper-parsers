@@ -10,7 +10,7 @@ sys.path.append('temper.out/py/temper-parsers')
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG, format='%(message)s')
 
 from temper_parsers.src.parser import Parser
-from temper_parsers.src.tree import Node
+from temper_parsers.src.common.tree import Node
 
 with open(sys.argv[1]) as f:
     parser = Parser(f.read())

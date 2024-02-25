@@ -37,7 +37,7 @@ export let larkish(): Grammar {
     .seq().rule("CharQuotes").rule("StringBody").rule("CharQuotes").alias("String")
     .seq().rule("CharQuotes").rule("StringBody").rule("CharQuotes").rule("CharBang").alias("TokenString")
     .seq().rule("CharOpenSquare").rule("StringBody").rule("CharCloseSquare").alias("CharSet")
-    .seq().rule("CharHashtag").char(ascii).alias("CharSet");
+    .seq().rule("CharHashtag").char(ascii).alias("String");
   ret.name("StringBody")
     .seq().rule("StringData").token();
   ret.name("StringData")

@@ -59,6 +59,7 @@ export class ItemPartSet extends ItemPart {
 }
 
 var noTrees: List<Tree> = [];
+var noEnts: List<ItemPart> = [];
 
 let walk(trees: Listed<Tree>): String {
   return trees.join("", fn(t: Tree): String {
@@ -113,6 +114,11 @@ export interface Item {
       var t: Tree = new Node(mode, b);
       return [t];
     }
+  }
+
+  public asOnlyWith(tree: Tree): Item {
+    var self = this;
+    return new OnlyItem(self.name, self.ents, self.ents.length, self.start, self.id, self.mode, tree);
   }
  
   public advanceWithChar(got: String): Item {
@@ -206,5 +212,20 @@ class StringItem extends Item {
   public addTreesTo(b: ListBuilder<Tree>): Void {
     last.addTreesTo(b);
     b.add(new Token(str));
+  }
+}
+
+
+class OnlyItem extends Item {
+  public name: String;
+  public ents: List<ItemPart>;
+  public dot: Int;
+  public start: Int;
+  public id: Int;
+  public mode: String;
+  private tree: Tree;
+
+  public addTreesTo(b: ListBuilder<Tree>): Void {
+    b.add(tree);
   }
 }

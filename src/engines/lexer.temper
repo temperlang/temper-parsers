@@ -1,20 +1,48 @@
 
 let {...} = import("../common/rules");
 let {...} = import("../common/tree");
+let {...} = import("../regex/nfa");
 
-class Table {
-
+var idString(s: String): String {
+  return s;
 }
 
 export class Lexer {
-  public constructor(r: Rules): Void {
+  public nfa: NFA;
+  private rules: Rules;
 
+  public constructor(r1: Rules, r2: Rules): Void {
+    rules = r2;
+    nfa = new NFA(r1, r2);
+  }
+
+  public lookup(id: Int): Rule {
+    return rules.rules[id];
   }
 
   public trees(src: String): Listed<Tree> {
     var tokens = new ListBuilder<Tree>();
-    
-    var tree: Tree = new Node("tokens", tokens);
+
+    var split = src.split("");
+
+    var v = nfa.run(split);
+
+    for (var i = 0; i < v.length; i++) {
+      var cur = new ListBuilder<Tree>();
+      var vi = v[i];
+      for (var j = 0; j < vi.length; j++) {
+        var vj = vi[j];
+        var s = new ListBuilder<String>();
+        for (var k = i; k < vj.value; k++) {
+          s.add(split[k]);
+        }
+        var tok: Tree = new Token(s.join("", idString));
+        cur.add(new Node(lookup(vj.key).name, [tok]));
+      }
+      tokens.add(new Node("set", cur));
+    }
+
+    var tree: Tree = new Node("list", tokens);
     return [tree];
   }
 }
