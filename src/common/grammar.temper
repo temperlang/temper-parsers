@@ -3,8 +3,10 @@ let {...} = import("./tree");
 let {...} = import("./rules");
 let {...} = import("../larkish/ascii");
 let {...} = import("./items");
+let {...} = import("../engines/engine");
 let {...} = import("../engines/earley");
 let {...} = import("../engines/lexer");
+let {...} = import("../engines/glr");
 
 var right = [true, true];
 
@@ -230,7 +232,7 @@ export class Grammar {
     return new Lexer(lex, r);
   }
 
-  public charEarley(start: String): Earley {
+  public charEarley(start: String): Engine {
     var rules = build();
     var found = if (start != "") {
       rules.byName[start]
@@ -245,7 +247,11 @@ export class Grammar {
     return new CharEarley(start, rules.nullable, firstSet, rules.byName);
   }
 
-  public lexerEarley(start: String): Earley {
+  public glr(start: String): Engine {
+    
+  }
+
+  public lexerEarley(start: String): Engine {
     var rules = build();
     var found = if (start != "") {
       rules.byName[start]

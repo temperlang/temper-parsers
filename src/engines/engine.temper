@@ -1,0 +1,6 @@
+
+let {...} = import("../common/tree");
+
+export interface Engine {
+  public trees(src: String): Listed<Tree>;
+}

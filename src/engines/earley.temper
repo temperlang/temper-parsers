@@ -3,6 +3,7 @@ let {...} = import("../common/items");
 let {...} = import("../common/rules");
 let {...} = import("../common/tree");
 let {...} = import("./lexer");
+let {...} = import("./engine");
 
 export class EarleyConfig {
   public numIds: Int;
@@ -97,11 +98,7 @@ for (var i = 97; i <= 122; i++) {
   wordCharCodes[i] = true;
 }
 
-export interface Earley {
-  public trees(src: String): Listed<Tree>;
-}
-
-export class CharEarley extends Earley {
+export class CharEarley extends Engine {
   private start: String;
   private nullable: DenseBitVector;
   private byName: Mapped<String, Listed<Rule>>;
@@ -239,7 +236,7 @@ export class CharEarley extends Earley {
   }
 }
 
-export class LexerEarley extends Earley {
+export class LexerEarley extends Engine {
   private start: String;
   private nullable: DenseBitVector;
   private byName: Mapped<String, Listed<Rule>>;
@@ -266,19 +263,17 @@ export class LexerEarley extends Earley {
         var ent = item.ents[itemDot];
         if (!ent.isTest()) {
           var name = ent.name();
-          if (name != "%border") {
-            var found = byName[name];
-            var flen = found.length;
-            var noMagic = true;
-            for (var k = 0; k < flen; k++) {
-              var cur = found[k];
-              var itemFound = cur.toItem(i);
-              last.add(itemFound);
-              if (nullable[cur.id]) {
-                var magic = item.advance();
-                last.add(magic);
-                noMagic = false;
-              }
+          var found = byName[name];
+          var flen = found.length;
+          var noMagic = true;
+          for (var k = 0; k < flen; k++) {
+            var cur = found[k];
+            var itemFound = cur.toItem(i);
+            last.add(itemFound);
+            if (nullable[cur.id]) {
+              var magic = item.advance();
+              last.add(magic);
+              noMagic = false;
             }
           }
         }
@@ -313,7 +308,6 @@ export class LexerEarley extends Earley {
         var s = s.join("", idString);
         var t = new Token(s);
         var item = lexer.lookup(vj.key).toItem(i).asOnlyWith(t);
-        // console.log("[${i.toString()} .. ${vj.value.toString()}] = ${s}")
         sets[vj.value].add(item);
       }
     }
@@ -336,6 +330,7 @@ export class LexerEarley extends Earley {
         last = [ln, col, i];
       }
     }
+    // console.log("${num.toString()} / ${len.toString()} = ${(num.toFloat64() / len.toFloat64()).toString()}");
     return sets[sets.length - 2];
   }
 
