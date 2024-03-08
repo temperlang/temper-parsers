@@ -11,13 +11,14 @@ export class Parser {
   private grammar: Grammar;
 
   public constructor(src: String): Void {
-    mode = "lexer-earley";
+    mode = "rec";
     var tree = larky.charEarley("Grammar").trees(src)[0];
     grammar = toGrammar(tree);
   }
 
   public parse(str: String): Tree | Bubble {
     match (mode) {
+      "rec" -> return grammar.rec("__start__").trees(str)[0];
       "earley" -> return grammar.charEarley("__start__").trees(str)[0];
       "lexer-earley" -> return grammar.lexerEarley("__start__").trees(str)[0];
       "lexer" -> return grammar.lexer().trees(str)[0];

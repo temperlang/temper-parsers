@@ -6,6 +6,7 @@ let {...} = import("../engines/earley/char");
 let {...} = import("../engines/earley/config");
 let {...} = import("../engines/earley/lexer");
 let {...} = import("../engines/earley/set");
+let {...} = import("../engines/rec");
 let {...} = import("../regex/nfa");
 let {...} = import("./items");
 let {...} = import("./rules");
@@ -195,7 +196,7 @@ export let toGrammar(whole: Tree): Grammar {
   translate(whole);
 
   grammar.name("__start__").seq().rule("__ignores__").rule("start").rule("__ignores__").expand();
-  grammar.name("__ignores__").seq().rule("__ignores__").rule("IGNORE").ignore();
+  grammar.name("__ignores__").seq().rule("IGNORE").rule("__ignores__").ignore();
   grammar.name("__ignores__").seq().ignore();
 
   grammar.name("RAW_ASCII").seq().char(ascii).token();
@@ -233,6 +234,16 @@ export class Grammar {
     var r = build();
     lex.build();
     return new Lexer(lex, r);
+  }
+
+  public rec(start: String): Engine {
+    var rules = build();
+    var found = if (start != "") {
+      rules.byName[start]
+    } else {
+      rules.rules.toList()
+    };
+    return new Rec(start, rules, new NFA(lex, rules));
   }
 
   public charEarley(start: String): Engine {

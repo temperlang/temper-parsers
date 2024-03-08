@@ -81,6 +81,7 @@ export class LexerEarley extends Engine {
         }
         var s = s.join("", idString);
         var t = new Token(s);
+        // var t = new Token("");
         var item = rules[vj.key].toItem(i).asOnlyWith(t);
         sets[vj.value].add(item);
       }

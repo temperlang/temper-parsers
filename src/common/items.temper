@@ -71,7 +71,6 @@ let walk(trees: Listed<Tree>): String {
   });
 }
 
-
 export interface Item {
   public name: String;
   public ents: List<ItemPart>;

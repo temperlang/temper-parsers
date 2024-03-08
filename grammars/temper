@@ -79,38 +79,20 @@ var_class: "export" "const" -> export_const
 
 expr?: assign
 
-assign: postfix "." ident "=" assign -> set_prop
-assign: postfix "[" expr "]" "=" assign -> set_index
-assign: ident ("+="! | "*="! | "/="! | "-="! | "%="!) assign -> set_mut_var
-assign: ident "=" assign -> set_var
+assign: postfix ("+="! | "*="! | "/="! | "-="! | "%="! | "="!) orelse
 assign?: orelse
 
-orelse: logic "orelse" orelse
-orelse?: logic
+orelse: logic ("orelse" logic)*
 
-logic: logic "&&" cmp -> boolean_and
-logic: logic "||" cmp -> boolean_or
-logic?: cmp
+logic: cmp (("&&"! | "||"!) cmp)*
 
-cmp: cmp "!=" add -> is_equal_to
-cmp: cmp "==" add -> is_not_equal_to
-cmp: cmp "<" add -> is_less_than
-cmp: cmp ">" add -> is_greater_than
-cmp: cmp "<=" add -> is_less_than_or_equal_to
-cmp: cmp ">=" add -> is_greater_than_or_equal_to
-cmp?: add
+cmp: add (("!="! | "=="! |  "<"! |  ">"! |  "<="! |  ">="!) cmp)*
 
-add: add "+" mul -> add
-add: add "-" mul -> subtract
-add?: mul
+add: mul (("+"! | "-"!) mul)*
 
-mul: mul "*" pow -> multiply
-mul: mul "/" pow -> divide
-mul: mul "%" pow -> modulo
-mul?: pow
+mul: pow (("*"! | "/"! | "%"!) pow)*
 
-pow: prefix "**" pow
-pow?: prefix
+pow: prefix ("**"! prefix)*
 
 prefix: "-" postfix -> negate
 prefix: "++" postfix -> pre_inc

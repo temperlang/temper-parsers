@@ -82,6 +82,7 @@ export class NFA {
   private bad: State;
   private good: State;
   private none: State;
+  private map: MapBuilder<String, ListBuilder<State>>;
 
   public constructor(startRules: Rules, baseRules: Rules): Void {
     rules = baseRules;
@@ -90,10 +91,18 @@ export class NFA {
     bad = alloc(null);
     root = alloc(null);
     none = alloc(null);
+    map = new MapBuilder<String, ListBuilder<State>>();
 
     for (var i = 0; i < startRules.rules.length; i++) {
       var rule = startRules.rules[i];
       var start = alloc(rule);
+      var cur = map.getOr(rule.name, new ListBuilder<State>());
+      if (cur.length == 0) {
+        cur.add(start);
+        map[rule.name] = cur;
+      } else {
+        cur.add(start);
+      }
       root.epsilon(start);
       addRuleTo(start, good, rule, new MapBuilder<Int, State>());
     }
@@ -145,6 +154,19 @@ export class NFA {
     });
   }
 
+  public runFromName(name: String, chrs: Listed<String>, n: Int): Int {
+    var cur = map.getOr(name, new ListBuilder<State>());
+    var best = -1;
+    for (var i = 0; i < cur.length; i++) {
+      var val = cur.getOr(i, none);
+      var got = runFrom(val, new ListBuilder<Int>(), chrs, n);
+      if (got > best) {
+        best = got;
+      }
+    }
+    return best;
+  }
+
   public runFrom(state: State, done: ListBuilder<Int>, chrs: Listed<String>, n: Int): Int {
     if (state == good) {
       return n;
@@ -184,7 +206,6 @@ export class NFA {
     while (n < chrs.length) {
       var cur = runFrom(state, new ListBuilder<Int>(), chrs, n);
       if (cur > n) {
-        // console.log("${state.rule.as<Rule>().name}: ${n.toString()} .. ${cur.toString()}");
         while (ls.length <= n) {
           ls.add(new ListBuilder<Pair<Int, Int>>());
         }

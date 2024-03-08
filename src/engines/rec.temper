@@ -1,0 +1,109 @@
+
+let {...} = import("../common/rules");
+let {...} = import("../common/tree");
+let {...} = import("../regex/nfa");
+let {...} = import("./engine");
+
+export class Rec extends Engine {
+  private start: String;
+  private rules: Rules;
+  private nfa: NFA;
+  private done: MapBuilder<Int, Boolean>;
+  private results: MapBuilder<Int, Int>;
+  private numIds: Int;
+  private depth: Int;
+  private max: Int;
+
+  constructor(s: String, r: Rules, n: NFA): Void {
+    start = s;
+    rules = r;
+    nfa = n;
+    done = new MapBuilder<Int, Boolean>();
+    results = new MapBuilder<Int, Int>();
+    numIds = rules.rules.length;
+    depth = 0;
+  }
+
+  private log(str: String): Void {
+    var s = str;
+    for (var i = 0; i < depth; i++) {
+      s = " ${s}";
+    }
+    console.log(s);
+  }
+
+  private checkAlways(n: Int, str: Listed<String>, rule: Rule): Int {
+    if (rule.lex) {
+      var got = nfa.runFromName(rule.name, str, n);
+      if (got >= n) {
+        return got;
+      }
+      return -1;
+    } else {
+      var head = n;
+      for (var i = 0; i < rule.parts.length; i++) {
+        var part = rule.parts[i];
+        if (part.isString) {
+          return -1;
+        } else {
+          head = name(head, str, part.data);
+          if (head < n) {
+            return head;
+          }
+        }
+      }
+      return head;
+    }
+  }
+
+  private check(n: Int, str: Listed<String>, rule: Rule): Int {
+    var hash = n * numIds + rule.id;
+    var got = results.getOr(hash, -2);
+    if (got != -2) {
+      return got;
+    }
+    results[hash] = -1;
+    var ret = checkAlways(n, str, rule);
+    results[hash] = ret;
+    return ret;
+  }
+
+  private checks(n: Int, str: Listed<String>, rules: Listed<Rule>): Int {
+    var best = -1;
+    for (var i = 0; i < rules.length; i++) {
+      var got = check(n, str, rules[i]);
+      if (got >= best) {
+        best = got;
+      }
+    }
+    return best;
+  }
+
+  private name(n: Int, str: Listed<String>, name: String): Int {
+    // log("${name}: ${n.toString()}");
+    depth += 1;
+    var got = checks(n, str, rules.byName[name]);
+    depth -= 1;
+    if (got < n) {
+      // log("^ fail");
+      return got;
+    }
+    if (got > max) {
+      max = got;
+    }
+    return got;
+  }
+
+  public trees(src: String): Listed<Tree> {
+    max = -1;
+    var split = src.split("");
+    var ret = name(0, split, start);
+    var str = "${max.toString()} / ${split.length.toString()}";
+    if (ret + 1 != split.length) {
+      console.log(str);
+      return [];
+    }
+    var t: Tree = new Token("pass");
+    return [t];
+  }
+}
