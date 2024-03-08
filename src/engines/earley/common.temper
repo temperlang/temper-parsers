@@ -1,0 +1,8 @@
+
+export let idString(s: String): String {
+  return s;
+}
+
+export let ord(c: String): Int {
+  return c.codePoints.read();
+}

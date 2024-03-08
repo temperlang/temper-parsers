@@ -1,0 +1,122 @@
+
+let {...} = import("../../common/items");
+let {...} = import("../../common/rules");
+let {...} = import("../../common/tree");
+let {...} = import("../../regex/nfa");
+let {...} = import("../engine");
+let {...} = import("./common");
+let {...} = import("./config");
+let {...} = import("./set");
+
+export class LexerEarley extends Engine {
+  private start: String;
+  private nullable: DenseBitVector;
+  private byName: Mapped<String, Listed<Rule>>;
+  private sets: ListBuilder<EarleyStateSet>;
+  private rules: Listed<Rule>;
+  private nfa: NFA;
+
+  public constructor(s: String, n: DenseBitVector, e: EarleyStateSet, b: Mapped<String, Listed<Rule>>, r: Listed<Rule>, l: NFA): Void {
+    start = s;
+    nullable = n;
+    byName = b;
+    sets = new ListBuilder<EarleyStateSet>();
+    sets.add(e);
+    rules = r;
+    nfa = l;
+  }
+
+  private process1(i: Int, chars: List<String>, codes: List<Int>): Int {
+    var last = sets[i];
+    var start = last.length;
+    for (var j = 0; j < last.length; j++) {
+      var item = last[j];
+      var itemDot = item.dot;
+      var itemLen = item.ents.length;
+      if (item.dot < itemLen) {
+        var ent = item.ents[itemDot];
+        if (!ent.isTest()) {
+          var name = ent.name();
+          var found = byName[name];
+          var flen = found.length;
+          var noMagic = true;
+          for (var k = 0; k < flen; k++) {
+            var cur = found[k];
+            var itemFound = cur.toItem(i);
+            last.add(itemFound);
+            if (nullable[cur.id]) {
+              var magic = item.advance();
+              last.add(magic);
+              noMagic = false;
+            }
+          }
+        }
+      } else {
+        var olds = sets[item.start].nexts.getOr(item.name, new ListBuilder<Item>());
+        var olen = olds.length;
+        for (var k = 0; k < olen; k++) {
+          last.add(olds[k].advanceWithItem(item));
+        }
+      }
+    }
+    return last.length - start;
+  }
+
+  private string(str: String): EarleyStateSet | Bubble {
+    var config = sets[0].config;
+    var chars = str.split("");
+    var codes = chars.map(ord);
+    var len = chars.length;
+    for (var i = 1; i <= len; i++) {
+      sets.add(new EarleyStateSet(config));
+    }
+    var all = nfa.run(chars);
+    for (var i = 0; i < all.length; i++) {
+      var sub = all[i];
+      for (var j = 0; j < sub.length; j++) {
+        var vj = sub[j];
+        var s = new ListBuilder<String>();
+        for (var k = i; k < vj.value; k++) {
+          s.add(chars[k]);
+        }
+        var s = s.join("", idString);
+        var t = new Token(s);
+        var item = rules[vj.key].toItem(i).asOnlyWith(t);
+        sets[vj.value].add(item);
+      }
+    }
+    var num = 0;
+    var ln = 1;
+    var col = 1;
+    var last = [1, 1];
+    for (var i = 0; i < len; i++) {
+      if (i != 0) {
+        num += sets[i - 1].clear();
+      }
+      if (chars[i] == "\n") {
+        ln += 1;
+        col = 1;
+      } else {
+        col += 1;
+      }
+      var added = process1(i, chars, codes);
+      if (added != 0) {
+        last = [ln, col, i];
+      }
+    }
+    // console.log("${num.toString()} / ${len.toString()} = ${(num.toFloat64() / len.toFloat64()).toString()}");
+    return sets[sets.length - 2];
+  }
+
+  public trees(src: String): Listed<Tree> {
+    var last = string(src);
+    var ret = new ListBuilder<Tree>();
+    for (var i = 0; i < last.length; i++) {
+      var cur = last[i];
+      if (cur.name == start && cur.start == 0 && cur.dot == cur.ents.length) {
+        ret.addAll(cur.toTree());
+      }
+    }
+    return ret;
+  }
+}

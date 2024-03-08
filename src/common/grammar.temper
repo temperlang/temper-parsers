@@ -1,12 +1,15 @@
 
-let {...} = import("./tree");
-let {...} = import("./rules");
 let {...} = import("../larkish/ascii");
-let {...} = import("./items");
 let {...} = import("../engines/engine");
-let {...} = import("../engines/earley");
 let {...} = import("../engines/lexer");
-let {...} = import("../engines/glr");
+let {...} = import("../engines/earley/char");
+let {...} = import("../engines/earley/config");
+let {...} = import("../engines/earley/lexer");
+let {...} = import("../engines/earley/set");
+let {...} = import("../regex/nfa");
+let {...} = import("./items");
+let {...} = import("./rules");
+let {...} = import("./tree");
 
 var right = [true, true];
 
@@ -247,10 +250,6 @@ export class Grammar {
     return new CharEarley(start, rules.nullable, firstSet, rules.byName);
   }
 
-  public glr(start: String): Engine {
-    
-  }
-
   public lexerEarley(start: String): Engine {
     var rules = build();
     var found = if (start != "") {
@@ -264,7 +263,7 @@ export class Grammar {
       firstSet.add(found[i].toItem(0));
     }
     lex.build();
-    return new LexerEarley(start, rules.nullable, firstSet, rules.byName, new Lexer(lex, rules));
+    return new LexerEarley(start, rules.nullable, firstSet, rules.byName, rules.rules, new NFA(lex, rules));
   }
 
   public name(s: String): Grammar {

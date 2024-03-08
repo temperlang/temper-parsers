@@ -1,0 +1,160 @@
+
+let {...} = import("../../common/items");
+let {...} = import("../../common/rules");
+let {...} = import("../../common/tree");
+let {...} = import("../engine");
+let {...} = import("./common");
+let {...} = import("./config");
+let {...} = import("./set");
+
+var nonTestItemEntry = new ItemPartItem("does not matter");
+
+var wordCharCodes = new DenseBitVector(127);
+
+for (var i = 65; i <= 90; i++) {
+  wordCharCodes[i] = true;
+}
+
+wordCharCodes[95] = true;
+
+for (var i = 97; i <= 122; i++) {
+  wordCharCodes[i] = true;
+}
+
+export class CharEarley extends Engine {
+  private start: String;
+  private nullable: DenseBitVector;
+  private byName: Mapped<String, Listed<Rule>>;
+  private sets: ListBuilder<EarleyStateSet>;
+
+  public constructor(s: String, n: DenseBitVector, e: EarleyStateSet, b: Mapped<String, Listed<Rule>>): Void {
+    start = s;
+    nullable = n;
+    byName = b;
+    sets = new ListBuilder<EarleyStateSet>();
+    sets.add(e);
+  }
+
+  private process1(i: Int, chars: List<String>, codes: List<Int>): Void {
+    var ichar = chars.getOr(i, "\0");
+    var icode = codes.getOr(i, 0);
+    var i1code = codes.getOr(i+1, 0);
+    var last = sets[i];
+    var next = sets[i+1];
+    var inc = 0;
+    for (var j = 0; j < last.length; j += inc) {
+      inc = 1;
+      var item = last[j];
+      var itemDot = item.dot;
+      var itemLen = item.ents.length;
+      if (item.dot < itemLen) {
+        var ent = item.ents[itemDot];
+        if (ent.isTest()) {
+          if (ent.check(icode)) {
+            var more = true;
+            var k = 1;
+            while (more) {
+              var nextEnt = item.ents.getOr(k + itemDot, nonTestItemEntry);
+              if (nextEnt.isTest()) {
+                if (nextEnt.check(codes.getOr(i+k, -1))) {
+                  k += 1;
+                } else {
+                  k = 0;
+                  more = false;
+                }
+              } else {
+                more = false;
+              }
+            }
+            if (k == 1) {
+              next.add(item.advanceWithChar(ichar));
+            } else if (k > 1) {
+              var b = new ListBuilder<String>();
+              b.add(ichar);
+              for (var l = 1; l < k; l++) {
+                b.add(chars.getOr(i+l, ""));
+              }
+              var s = b.join("", idString);
+              sets.getOr(i+k, last).add(item.advanceWithString(k, s));
+            }
+          }
+        } else {
+          var name = ent.name();
+          if (name == "%border") {
+            if (!wordCharCodes[i1code] || !wordCharCodes[icode]) {
+              last.add(item.advance());
+            }
+          } else {
+            var found = byName[name];
+            var flen = found.length;
+            var noMagic = true;
+            for (var k = 0; k < flen; k++) {
+              var cur = found[k];
+              var itemFound = cur.toItem(i);
+              last.add(itemFound);
+              if (nullable[cur.id]) {
+                var magic = item.advance();
+                last.add(magic);
+                noMagic = false;
+              }
+            }
+          }
+        }
+      } else {
+        var olds = sets[item.start].nexts.getOr(item.name, new ListBuilder<Item>());
+        var olen = olds.length;
+        for (var k = 0; k < olen; k++) {
+          last.add(olds[k].advanceWithItem(item));
+        }
+      }
+    }
+  }
+
+  private string(str: String): EarleyStateSet | Bubble {
+    var config = sets[0].config;
+    var chars = str.split("");
+    var codes = chars.map(ord);
+    var len = chars.length;
+    var ret = sets[0];
+    for (var i = 0; i < len; i++) {
+      ret = new EarleyStateSet(config);
+      sets.add(ret);
+    }
+    var num = 0;
+    sets.add(new EarleyStateSet(config));
+    var ln = 1;
+    var col = 1;
+    for (var i = 0; i < len; i++) {
+      if (chars[i] == "\n") {
+        ln += 1;
+        col = 1;
+      } else {
+        col += 1;
+      }
+      process1(i, chars, codes);
+      var j = i;
+      while (sets[j].length == 0) {
+        if (j == len) {
+          console.log("error at Ln ${ln.toString()}, Col ${col.toString()}");
+          return ret;
+        }
+        j += 1;
+      }
+      num += sets[i].clear();
+    }
+    process1(len, [], []);
+    return ret;
+  }
+
+  public trees(src: String): Listed<Tree> {
+    var last = string(src);
+    var ret = new ListBuilder<Tree>();
+    for (var i = 0; i < last.length; i++) {
+      var cur = last[i];
+      if (cur.name == start && cur.start == 0 && cur.dot == cur.ents.length) {
+        ret.addAll(cur.toTree());
+      }
+    }
+    return ret;
+  }
+}

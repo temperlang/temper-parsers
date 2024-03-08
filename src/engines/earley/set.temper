@@ -1,0 +1,70 @@
+
+let {...} = import("../../common/items");
+let {...} = import("../../common/rules");
+let {...} = import("../../common/tree");
+let {...} = import("./config");
+
+var emptyItemPart: ItemPart = new ItemPartSet([]);
+
+export class EarleyStateSet {
+  public nexts: MapBuilder<String, ListBuilder<Item>>;
+  public config: EarleyConfig;
+  private setv: ListBuilder<Item>;
+  private hashes: MapBuilder<Int, Boolean>;
+
+  public constructor(conf: EarleyConfig) {
+    setv = new ListBuilder<Item>();
+    nexts = new MapBuilder<String, ListBuilder<Item>>();
+    hashes = new MapBuilder<Int, Boolean>();
+    config = conf;
+  }
+
+  public clear(): Int {
+    var len = setv.length;
+    setv = new ListBuilder<Item>();
+    hashes = new MapBuilder<Int, Boolean>();
+    return len;
+  }
+
+  public clearReport(): String {
+    var nums = new MapBuilder<String, Int>();
+    for (var i = 0; i < setv.length; i++) {
+      var c = setv[i];
+      nums[c.name] = nums.getOr(c.name, 0) + 1;
+    }
+    var s = new ListBuilder<String>();
+    nums.forEach { (k: String, v: Int): Void;;
+      s.add("${v.toString()}: ${k}");
+    };
+    return s.join("\n", fn(s: String): String {s});
+  }
+  
+  public add(next: Item): Boolean {
+    var hash
+      = next.id
+      + (next.dot + next.start * config.maxDot) * config.numIds;
+    if (hashes.getOr(hash, false)) {
+      return false;
+    }
+    hashes[hash] = true;
+    var ent = next.ents.getOr(next.dot, emptyItemPart);
+    if (!ent.isTest()) {
+      var at = ent.name(); 
+      var nextv = nexts.getOr(at, new ListBuilder<Item>());
+      if (nextv.length == 0) {
+        nexts[at] = nextv;
+      }
+      nextv.add(next);
+    }
+    setv.add(next);
+    return true;
+  }
+
+  public get(i: Int): Item {
+    return setv[i];
+  }
+
+  public get length(): Int {
+    return setv.length;
+  }
+}
