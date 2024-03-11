@@ -1,0 +1,186 @@
+
+let {...} = import("../common/rules");
+let {...} = import("../common/tree");
+let {...} = import("../regex/nfa");
+
+var noRules = new ListBuilder<Rule>();
+
+var idString(s: String): String {
+  return s;
+}
+
+export class Comp {
+  private start: String;
+  private rules: Rules;
+  private buffer: ListBuilder<String>;
+  private num: Int;
+  private map: MapBuilder<String, Int>;
+  private chars: ListBuilder<String>;
+
+  public constructor(s: String, r: Rules): Void {
+    start = s;
+    rules = r;
+    num = 0;
+    map = new MapBuilder<String, Int>();
+  }
+
+  private push(): ListBuilder<String> {
+    var old = buffer;
+    buffer = new ListBuilder<String>();
+    return old;
+  }
+
+  private pop(old: ListBuilder<String>): String {
+    var ret = buffer.join("", idString);
+    buffer = old;
+    return ret;
+  }
+
+  private add(s: String): Void {
+    buffer.add(s);
+  }
+
+  private nameOf(s: String): String {
+    var got = map.getOr(s, -1);
+    if (got != -1) {
+      return "rules${got.toString()}";
+    }
+    num += 1;
+    map[s] = num;
+    return "rules${num.toString()}";
+  }
+
+  private charSet(s: String): String {
+    var got = map.getOr(s, -1);
+    if (got != -1) {
+      return "chars${got.toString()}";
+    }
+    chars.add(s);
+    num += 1;
+    map[s] = num;
+    return "chars${num.toString()}";
+  }
+
+  private check(rule: Rule): Void {
+    var old = push();
+    add("  /// ${rule.name}\n");
+    add("  private rule${rule.id.toString()}(n: Int): Void {\n");
+    var n = "n";
+    var parts = new ListBuilder<String>();
+    for (var i = 0; i < rule.parts.length; i++) {
+      var part = rule.parts[i];
+      var name = "part${i.toString()}";
+      parts.add(name);
+      if (part.isString) {
+        add("    var ${name} = ${charSet(part.data)}.getOr(s.getOr(${n}, \"\"), false);")
+      } else {
+        add("    var ${name} = ${nameOf(part.data)}(${n}, s);\n");
+        add("    if (${name}.stop < 0) {\n")
+        add("      return error;\n")
+        add("    }\n")
+        n = "${name}.stop";
+      }
+    }
+    // var joined = parts.join(", ", idString);
+    if (rule.mode == "%expand") {
+      add("    var ls = new ListBuilder<Tree>();");
+      for (var i = 0; i < parts.length; i++) {
+        add("    ls.addAll(${parts[i]}.trees);");
+      }
+      add("    return new Result(${n}, ls);\n")
+    } else if (rule.mode == "%ignore") {
+      add("    return new Result(${n}, []);\n");
+    } else if (rule.mode == "%token") {
+      add("    var s = new ListBuilder<String>();\n");
+      add("    for (var i = n; i < ${n}; i++) {\n");
+      add("      s.add(s[i])\n");
+      add("    }\n");
+      add("    var t: Tree = new Token(s.join(\"\", idString));\n");
+      add("    return new Result(${n}, [t]);\n");
+    } else {
+      add("    var ls = new ListBuilder<Tree>();");
+      for (var i = 0; i < parts.length; i++) {
+        add("    ls.addAll(${parts[i]}.trees);");
+      }
+      add("    var t: Tree = new Node(\"${rule.mode}\", ls);\n");
+      add("    return new Result(${n}, [t]);\n");
+    }
+    add("  }\n");
+    var got = pop(old);
+    add(got);
+  }
+
+  private name(name: String): Void {
+    var rules = rules.byName.getOr(name, noRules);
+    add("let ${nameOf(name)}(n: Int): Result {\n");
+    for (var i = 0; i < rules.length; i++) {
+      var name = "res${i.toString()}";
+      var rule = rules[i];
+      add("    var ${name} = rule${rule.id.toString()}(n);\n");
+      add("    if (${name}.stop >= n) {\n");
+      add("      return ${name};\n");
+      add("    }\n");
+    }
+    add("    return error;\n");
+    add("  }\n");
+
+  }
+
+  public comp(): String {
+    buffer = new ListBuilder<String>();
+    chars = new ListBuilder<String>();
+    var done = new MapBuilder<String, Boolean>();
+    add("let {...} = import(\"./trees\");\n");
+    add("\n");
+    add("let idString(s: String): String {\n");
+    add("  return s;\n");
+    add("}\n");
+    add("\n")
+    add("class Result {\n");
+    add("  public stop: Int;\n");
+    add("  public trees: Listed<Tree>;\n");
+    add("}\n");
+    add("\n")
+    add("export class Parser {\n")
+    for (var i = 0; i < rules.rules.length; i++) {
+      var rule = rules.rules[i];
+      if (done.getOr(rule.name, false)) {
+        done[rule.name] = true;
+        name(rule.name);
+      }
+      check(rule);
+      add("\n");
+    }
+    add("  public constructor(): Void {\n")
+    add("  }\n");
+    add("\n");
+    add("  public parse(s: String): Tree {\n")
+    add("    return ${nameOf(start)}(0, s.split(\"\")).trees[0];\n")
+    add("  }\n")
+    add("}\n")
+    for (var i = 0; i < chars.length; i++) {
+      var str = chars[i];
+      var split = str.split("");
+      var name = charSet(str);
+      add("var ${name} = new MapBuilder<String, Boolean>();\n");
+      for (var j = 0; j < split.length; j++) {
+        var chr = split[j];
+        if (chr == "\n") {
+          add("${name}[\"\\n\"] = true;\n");
+        } else if (chr == "\r") {
+          add("${name}[\"\\r\"] = true;\n");
+        } else if (chr == "\t") {
+          add("${name}[\"\\t\"] = true;\n");
+        } else if (chr == "\\") {
+          add("${name}[\"\\\\\"] = true;\n");
+        } else if (chr == "\"") {
+          add("${name}[\"\\\"\"] = true;\n");
+        } else {
+          add("${name}[\"${chr}\"] = true;\n");
+        }
+      }
+      add("\n");
+    }
+    return buffer.join("", idString);
+  }
+}

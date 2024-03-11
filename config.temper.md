@@ -1,4 +1,4 @@
-# Temper Earley Parser
+# Temper Parsers
 
     export let name = "temper-parsers";
     import("./src/parser");

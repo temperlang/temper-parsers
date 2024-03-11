@@ -3,6 +3,7 @@
 let {...} = import("./common/grammar");
 let {...} = import("./common/tree");
 let {...} = import("./larkish/larkish");
+let {...} = import("./comp/comp");
 
 var larky = larkish();
 
@@ -14,6 +15,10 @@ export class Parser {
     mode = "rec";
     var tree = larky.charEarley("Grammar").trees(src)[0];
     grammar = toGrammar(tree);
+  }
+
+  public comp(): String {
+    return grammar.comp("__start__").comp();
   }
 
   public parse(str: String): Tree | Bubble {

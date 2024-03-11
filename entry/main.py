@@ -3,6 +3,8 @@
 import logging
 import sys
 
+sys.setrecursionlimit(1 << 12)
+
 sys.path.append('temper.out/py/std')
 sys.path.append('temper.out/py/temper-core')
 sys.path.append('temper.out/py/temper-parsers')

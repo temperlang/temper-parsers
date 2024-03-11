@@ -1,12 +1,13 @@
 
-let {...} = import("../larkish/ascii");
+let {...} = import("../comp/comp");
 let {...} = import("../engines/engine");
 let {...} = import("../engines/lexer");
 let {...} = import("../engines/earley/char");
 let {...} = import("../engines/earley/config");
 let {...} = import("../engines/earley/lexer");
 let {...} = import("../engines/earley/set");
-let {...} = import("../engines/rec");
+let {...} = import("../engines/rec/rec");
+let {...} = import("../larkish/ascii");
 let {...} = import("../regex/nfa");
 let {...} = import("./items");
 let {...} = import("./rules");
@@ -228,6 +229,10 @@ export class Grammar {
     maxDot = 0;
     lex = new Rules();
     nonLex = new Rules();
+  }
+
+  public comp(start: String): Comp {
+    return new Comp(start, rules);
   }
 
   public lexer(): Lexer {

@@ -1,8 +1,13 @@
 {
   "type": "module",
+  "scripts": {
+    "build": "cd out.dir && temper build -b js -w ."
+  },
   "dependencies": {
     "@temperlang/core": "file:temper.out/js/temper-core",
     "@temperlang/std": "file:temper.out/js/std",
-    "temper-parsers": "file:temper.out/js/temper-parsers"
+    "let-name-parser": "file:temper.out/js/let-name-parser",
+    "temper-parsers": "file:temper.out/js/temper-parsers",
+    "work-template": "file:temper.out/js/work-template"
   }
 }

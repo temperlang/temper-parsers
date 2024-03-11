@@ -16,7 +16,7 @@ for (let i = 3; i < argv.length; i++) {
     }
     if (data != null) {
         if (data instanceof Tree) {
-            console.log(argv[i], format(data));
+            console.log(format(data));
         } else {
             console.log(`fail ${argv[i]}`);
         }
