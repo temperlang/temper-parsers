@@ -120,9 +120,8 @@ export class RulesRec extends Engine {
     max = -1;
     var split = src.split("");
     var ret = name(0, split, start);
-    var str = "${max.toString()} / ${split.length.toString()}";
     if (ret.stop != split.length) {
-      console.log(str);
+      console.log("${max.toString()} / ${split.length.toString()}");
       return [];
     }
     return ret.trees;

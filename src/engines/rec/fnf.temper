@@ -3,6 +3,7 @@ let {...} = import("../../common/rules");
 let {...} = import("../../common/tree");
 let {...} = import("../../regex/nfa");
 let {...} = import("../engine");
+let {...} = import("./result");
 let {...} = import("./normal");
 
 export class FNFRec extends Engine {
@@ -108,7 +109,7 @@ export class FNFRec extends Engine {
   public trees(src: String): Listed<Tree> {
     var cache = new Cache(0, src.split(""), nfa, byName,);
     var res = byName[start].check(cache);
-    console.log("${cache.best.toString()} / ${cache.chars.length.toString()}");
-    return res.toTrees(cache.chars);
+    console.log("${res.stop.toString()} & ${cache.best.toString()} / ${cache.chars.length.toString()}");
+    return [new Node("__start__", res.toTrees(cache.chars)).as<Tree>()];
   }
 }
