@@ -47,3 +47,15 @@ export class ResultEmpty extends Result {
     return [];
   }
 }
+
+export class ResultLink extends Result {
+  public stop: Int;
+  public name: String;
+  public value: Result;
+
+
+  public toTrees(chars: Listed<String>): Listed<Tree> {
+    var t: Tree = new Node(name, value.toTrees(chars));
+    return [t];
+  }
+}

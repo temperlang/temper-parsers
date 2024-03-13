@@ -94,7 +94,8 @@ export class NormalLink extends Normal {
   public name: String;
 
   public check(cache: Cache): Result {
-    return cache.rules.getOr(name, noNormal).check(cache);
+    var got = cache.rules.getOr(name, noNormal).check(cache);
+    return new ResultLink(got.stop, name, got);
   }
 }
 
