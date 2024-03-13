@@ -78,10 +78,10 @@ export class FNFRec extends Engine {
       return makeNormalTerm(rule.name);
     }
     // console.log(rule.name);
-    if (rule.parts.length == 0) {
+    var len = rule.parts.length;
+    if (len == 0) {
       return makeNormalEmpty();
     }
-    var len = rule.parts.length;
     var cur = translatePart(rule.parts[len-1]);
     for (var i = rule.parts.length-2; i >= 0; i--) {
       var part = rule.parts[i];
@@ -106,15 +106,9 @@ export class FNFRec extends Engine {
   }
 
   public trees(src: String): Listed<Tree> {
-    var cache = new Cache(
-      n = 0,
-      chars = src.split(""),
-      nfa = nfa,
-      results = new MapBuilder<Int, Result>(),
-      rules = byName,
-    );
+    var cache = new Cache(0, src.split(""), nfa, byName,);
     var res = byName[start].check(cache);
-    console.log("${res.stop.toString()} / ${cache.chars.length.toString()}");
-    return [res.trees];
+    console.log("${cache.best.toString()} / ${cache.chars.length.toString()}");
+    return res.toTrees(cache.chars);
   }
 }

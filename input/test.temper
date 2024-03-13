@@ -1,5 +1,2 @@
 
-export class Spam {
-  public x: Int;
-  public y: Int;
-}
+let {...} = import("./non-exist");

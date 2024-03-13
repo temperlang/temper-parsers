@@ -1,0 +1,49 @@
+
+let {...} = import("../../common/tree");
+
+export interface Result {
+  public stop: Int;
+
+  public toTrees(chars: Listed<String>): Listed<Tree> ;
+}
+
+export class ResultError extends Result {
+  public stop: Int;
+  public msg: String;
+
+  public toTrees(chars: Listed<String>): Listed<Tree> {
+    return [];
+  }
+}
+
+export class ResultCons extends Result {
+  public stop: Int;
+
+  public car: Result;
+  public cdr: Result;
+
+  public toTrees(chars: Listed<String>): Listed<Tree> {
+    var ret = new ListBuilder<Tree>();
+    ret.addAll(car.toTrees(chars));
+    ret.addAll(cdr.toTrees(chars));
+    return ret;
+  }
+}
+
+export class ResultToken extends Result {
+  public stop: Int;
+  public start: Int;
+  
+  public toTrees(chars: Listed<String>): Listed<Tree> {
+    var t: Tree = new TokenSlice(chars, start, stop);
+    return [t];
+  }
+}
+
+export class ResultEmpty extends Result {
+  public stop: Int;
+
+  public toTrees(chars: Listed<String>): Listed<Tree> {
+    return [];
+  }
+}

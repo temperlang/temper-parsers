@@ -9,12 +9,16 @@ export interface Tree {
 
 export interface Token extends Tree {
   public get value(): String;
+  
+  public toString(): String {
+    return "\"${value}\"";
+  }
 }
 
 export class TokenSlice extends Token {
-  public all: Listed<String>;
-  public low: Int;
-  public high: Int;
+  private all: Listed<String>;
+  private low: Int;
+  private high: Int;
 
   public get value(): String {
     var ret = new ListBuilder<String>();
@@ -24,16 +28,13 @@ export class TokenSlice extends Token {
     return ret.join("", idString);
   }
 
-  public toString(): String {
-    return "\"${value}\"";
-  }
 }
 
 export class TokenString extends Token {
-  public data: String;
+  private data: String;
 
-  public toString(): String {
-    return "\"${value}\"";
+  public get value(): String {
+    return data;
   }
 }
 

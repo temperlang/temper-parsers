@@ -1,26 +1,23 @@
 
-let {...} = import("../../common/tree");
 let {...} = import("../../regex/nfa");
-
-var noTrees: List<Tree> = [];
-
-export class Result {
-  public stop: Int;
-  public trees: Tree;
-}
+let {...} = import("./result");
 
 export class Cache {
   public n: Int;
   public chars: Listed<String>;
   public nfa: NFA;
-  public results: MapBuilder<Int, Result>;
   public rules: MapBuilder<String, Normal>;
+  public results: MapBuilder<Int, Result> = new MapBuilder<Int, Result>();
+  public best: Int = -1;
 
   public get head(): Int {
     return n;
   }
 
   public set head(value: Int): Void {
+    if (value > best) {
+      best = value;
+    }
     n = value;
   }
 }
@@ -37,9 +34,13 @@ export class NormalOr extends Normal {
   public v2: Normal;
   
   public check(cache: Cache): Result {
+    var init = cache.head;
     var r1 = v1.check(cache);
+    var mid = cache.head;
+    cache.head = init;
     var r2 = v2.check(cache);
     if (r1.stop >= r2.stop) {
+      cache.head = mid;
       return r1;
     } else {
       return r2;
@@ -60,7 +61,7 @@ export class NormalAnd extends Normal {
       return r1;
     }
     var r2 = v2.check(cache);
-    return new Result(r2.stop, new Node("cons", [r1.trees, r2.trees]));
+    return new ResultCons(r2.stop, r1, r2);
   }
 }
 
@@ -70,12 +71,13 @@ export class NormalTerm extends Normal {
 
   public check(cache: Cache): Result {
     var rname = cache.nfa.runFromName(name, cache.chars, cache.head);
-    if (rname < 0) {
-      return new Result(-1, new Error(name));
+    if (rname <= cache.head) {
+      return new ResultError(-1, name);
+    } else {
+      var got = cache.head;
+      cache.head = rname;
+      return new ResultToken(rname, got);
     }
-    var got = cache.head;
-    cache.head = rname;
-    return new Result(rname, new TokenString(name));
   }
 }
 
@@ -83,7 +85,7 @@ export class NormalEmpty extends Normal {
   public id: Int;
 
   public check(cache: Cache): Result {
-    return new Result(cache.head, new TokenString("empty"))
+    return new ResultEmpty(cache.head);
   }
 }
 
