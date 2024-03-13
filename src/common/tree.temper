@@ -1,10 +1,36 @@
 
+var idString(s: String): String {
+  return s;
+}
+
 export interface Tree {
   public toString(): String;
 }
 
-export class Token extends Tree {
-  public value: String;
+export interface Token extends Tree {
+  public get value(): String;
+}
+
+export class TokenSlice extends Token {
+  public all: Listed<String>;
+  public low: Int;
+  public high: Int;
+
+  public get value(): String {
+    var ret = new ListBuilder<String>();
+    for (var i = low; i < high; i++) {
+      ret.add(all[i]);
+    }
+    return ret.join("", idString);
+  }
+
+  public toString(): String {
+    return "\"${value}\"";
+  }
+}
+
+export class TokenString extends Token {
+  public data: String;
 
   public toString(): String {
     return "\"${value}\"";

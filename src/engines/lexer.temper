@@ -36,7 +36,7 @@ export class Lexer {
         for (var k = i; k < vj.value; k++) {
           s.add(split[k]);
         }
-        var tok: Tree = new Token(s.join("", idString));
+        var tok: Tree = new TokenString(s.join("", idString));
         cur.add(new Node(lookup(vj.key).name, [tok]));
       }
       tokens.add(new Node("set", cur));

@@ -108,7 +108,7 @@ export interface Item {
     } else if (mode == "%expand") {
       return b;
     } else if (mode == "%token") {
-      var t: Tree = new Token(walk(b));
+      var t: Tree = new TokenString(walk(b));
       return [t];
     } else {
       var t: Tree = new Node(mode, b);
@@ -188,7 +188,7 @@ class ItemItem extends Item {
       } else if (mode == "%token") {
         var bb = new ListBuilder<Tree>();
         item.addTreesTo(bb);
-        b.add(new Token(walk(bb)));
+        b.add(new TokenString(walk(bb)));
       } else {
         var bb = new ListBuilder<Tree>();
         item.addTreesTo(bb);
@@ -211,7 +211,7 @@ class StringItem extends Item {
 
   public addTreesTo(b: ListBuilder<Tree>): Void {
     last.addTreesTo(b);
-    b.add(new Token(str));
+    b.add(new TokenString(str));
   }
 }
 

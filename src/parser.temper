@@ -3,7 +3,6 @@
 let {...} = import("./common/grammar");
 let {...} = import("./common/tree");
 let {...} = import("./larkish/larkish");
-let {...} = import("./comp/comp");
 
 var larky = larkish();
 
@@ -12,19 +11,16 @@ export class Parser {
   private grammar: Grammar;
 
   public constructor(src: String): Void {
-    mode = "rec";
+    mode = "rules-rec";
     var tree = larky.charEarley("Grammar").trees(src)[0];
     grammar = toGrammar(tree);
   }
-
-  public comp(): String {
-    return grammar.comp("__start__").comp();
-  }
-
+  
   public parse(str: String): Tree | Bubble {
     match (mode) {
-      "rec" -> return grammar.rec("__start__").trees(str)[0];
-      "earley" -> return grammar.charEarley("__start__").trees(str)[0];
+      "floyd-rec" -> return grammar.fnfRec("__start__").trees(str)[0];
+      "rules-rec" -> return grammar.rulesRec("__start__").trees(str)[0];
+      "char-earley" -> return grammar.charEarley("__start__").trees(str)[0];
       "lexer-earley" -> return grammar.lexerEarley("__start__").trees(str)[0];
       "lexer" -> return grammar.lexer().trees(str)[0];
       else -> return bubble();

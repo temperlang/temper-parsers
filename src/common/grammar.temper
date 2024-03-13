@@ -1,12 +1,12 @@
 
-let {...} = import("../comp/comp");
 let {...} = import("../engines/engine");
 let {...} = import("../engines/lexer");
 let {...} = import("../engines/earley/char");
 let {...} = import("../engines/earley/config");
 let {...} = import("../engines/earley/lexer");
 let {...} = import("../engines/earley/set");
-let {...} = import("../engines/rec/rec");
+let {...} = import("../engines/rec/fnf");
+let {...} = import("../engines/rec/rules");
 let {...} = import("../larkish/ascii");
 let {...} = import("../regex/nfa");
 let {...} = import("./items");
@@ -220,6 +220,8 @@ export class Grammar {
   private lex: Rules;
   private nonLex: Rules;
   private mLex: ListBuilder<Boolean>;
+  private lexerExists: Boolean;
+  private lexerValue: NFA;
 
   public constructor(): Void {
     rname = "";
@@ -229,10 +231,15 @@ export class Grammar {
     maxDot = 0;
     lex = new Rules();
     nonLex = new Rules();
+    lexerExists = false;
   }
 
-  public comp(start: String): Comp {
-    return new Comp(start, rules);
+  private nfa(): NFA {
+    if (!lexerExists) {
+      lexerExists = true;
+      lexerValue = new NFA(lex, rules);
+    }
+    return lexerValue;
   }
 
   public lexer(): Lexer {
@@ -241,22 +248,20 @@ export class Grammar {
     return new Lexer(lex, r);
   }
 
-  public rec(start: String): Engine {
-    var rules = build();
-    var found = if (start != "") {
-      rules.byName[start]
-    } else {
-      rules.rules.toList()
-    };
-    return new Rec(start, rules, new NFA(lex, rules));
+  public fnfRec(start: String): Engine {
+    return new FNFRec(start, build(), nfa());
+  }
+
+  public rulesRec(start: String): Engine {
+    return new RulesRec(start, build(), nfa());
   }
 
   public charEarley(start: String): Engine {
     var rules = build();
-    var found = if (start != "") {
+    var found: Listed<Rule> = if (start != "") {
       rules.byName[start]
     } else {
-      rules.rules.toList()
+      rules.rules
     };
     var config = new EarleyConfig(nid, maxDot);
     var firstSet = new EarleyStateSet(config);
@@ -268,10 +273,10 @@ export class Grammar {
 
   public lexerEarley(start: String): Engine {
     var rules = build();
-    var found = if (start != "") {
+    var found: Listed<Rule> = if (start != "") {
       rules.byName[start]
     } else {
-      rules.rules.toList()
+      rules.rules
     };
     var config = new EarleyConfig(nid, maxDot);
     var firstSet = new EarleyStateSet(config);
@@ -279,7 +284,7 @@ export class Grammar {
       firstSet.add(found[i].toItem(0));
     }
     lex.build();
-    return new LexerEarley(start, rules.nullable, firstSet, rules.byName, rules.rules, new NFA(lex, rules));
+    return new LexerEarley(start, rules.nullable, firstSet, rules.byName, rules.rules, nfa());
   }
 
   public name(s: String): Grammar {

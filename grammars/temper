@@ -142,10 +142,11 @@ type_param: "out" type_param_name type_extends? -> out_type_param
 type_param_name: ident
 type_extends: "extends" type
 
-type: type "|" "Null" -> nullable_type
-type: ident -> nominal_type
-type: "fn" "(" (type ",")* type? ")" return_type -> function_type
-type: ident "<" (type ",")* type? ">" -> generic_type
+type: basic_type type_or_null?
+type_or_null: "|" "Null"
+basic_type: ident -> nominal_type
+basic_type: "fn" "(" (type ",")* type? ")" return_type -> function_type
+basic_type: ident "<" (type ",")* type? ">" -> generic_type
 
 return_type: ":" type -> return_type
 return_type: ":" type "|" "Bubble" -> return_type_or_bubble

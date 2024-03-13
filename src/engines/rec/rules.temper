@@ -5,6 +5,7 @@ let {...} = import("../../regex/nfa");
 let {...} = import("../engine");
 
 var noRules = new ListBuilder<Rule>();
+var noRulePart = new RulePart(true, "");
 
 var idString(s: String): String {
   return s;
@@ -15,7 +16,7 @@ class Result {
   public trees: Listed<Tree>;
 }
 
-export class Rec extends Engine {
+export class RulesRec extends Engine {
   private start: String;
   private rules: Rules;
   private nfa: NFA;
@@ -46,21 +47,22 @@ export class Rec extends Engine {
   private checkAlways(n: Int, str: Listed<String>, rule: Rule): Result {
     if (rule.lex) {
       var got = nfa.runFromName(rule.name, str, n);
-      if (got >= n) {
+      if (got > n) {
         var ls = new ListBuilder<String>();
         for (var i = n; i < got; i++) {
           ls.add(str.getOr(i, ""));
         }
         var joined = ls.join("", idString);
-        var t: Tree = new Token(joined);
+        var t: Tree = new TokenString(joined);
         return new Result(got, [t]);
       }
       return noResult;
     } else {
       var ls = new ListBuilder<Tree>();
       var head = n;
-      for (var i = 0; i < rule.parts.length; i++) {
-        var part = rule.parts[i];
+      var len = rule.parts.length;
+      for (var i = 0; i < len; i++) {
+        var part = rule.parts.getOr(i, noRulePart);
         var got = name(head, str, part.data);
         head = got.stop;
         if (head < n) {
@@ -85,7 +87,7 @@ export class Rec extends Engine {
     if (got != noResultFound) {
       return got;
     }
-    results[hash] = noResult;
+    // results[hash] = noResult;
     var ret = checkAlways(n, str, rule);
     results[hash] = ret;
     return ret;

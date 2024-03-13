@@ -159,7 +159,7 @@ export class NFA {
     var best = -1;
     for (var i = 0; i < cur.length; i++) {
       var val = cur.getOr(i, none);
-      var got = runFrom(val, new ListBuilder<Int>(), chrs, n);
+      var got = runFrom(val, chrs, n);
       if (got > best) {
         best = got;
       }
@@ -167,34 +167,32 @@ export class NFA {
     return best;
   }
 
-  public runFrom(state: State, done: ListBuilder<Int>, chrs: Listed<String>, n: Int): Int {
+  public runFrom(state: State, chrs: Listed<String>, n: Int): Int {
     if (state == good) {
       return n;
     } else if (state != bad && n < chrs.length) {
       var best = -1;
-      for (var i = 0; i < done.length; i++) {
-        if (done.getOr(i, -1) == state.id) {
-          return -1;
-        }
-      }
-      done.add(state.id);
       var nexts = state.chars.getOr(chrs.getOr(n, "").codePoints.read(), noNext).all;
-      for (var i = 0; i < nexts.length; i++) {
+      var nextsLen = nexts.length;
+      for (var i = 0; i < nextsLen; i++) {
         var next = nexts.getOr(i, -1);
         var state = table.getOr(next, bad);
-        var got = runFrom(state, new ListBuilder<Int>(), chrs, n+1);
+        var got = runFrom(state, chrs, n+1);
         if (got > best) {
           best = got;
         }
       }
-      for (var i = 0; i < state.epsilons.all.length; i++) {
-        var next = state.epsilons.all.getOr(i, -1);
+      var all = state.epsilons.all;
+      var allLen = all.length;
+      for (var i = 0; i < allLen; i++) {
+        var next = all.getOr(i, -1);
         var state = table.getOr(next, bad);
-        var got = runFrom(state, done, chrs, n);
+        var got = runFrom(state, chrs, n);
         if (got > best) {
           best = got;
         }
       }
+      // done[hash] = best;
       return best;
     } else {
       return -1;
@@ -204,7 +202,7 @@ export class NFA {
   public loop(state: State, chrs: Listed<String>, ls: ListBuilder<ListBuilder<Pair<Int, Int>>>): Void {
     var n = 0;
     while (n < chrs.length) {
-      var cur = runFrom(state, new ListBuilder<Int>(), chrs, n);
+      var cur = runFrom(state, chrs, n);
       if (cur > n) {
         while (ls.length <= n) {
           ls.add(new ListBuilder<Pair<Int, Int>>());

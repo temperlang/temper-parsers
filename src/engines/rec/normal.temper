@@ -1,0 +1,100 @@
+
+let {...} = import("../../common/tree");
+let {...} = import("../../regex/nfa");
+
+var noTrees: List<Tree> = [];
+
+export class Result {
+  public stop: Int;
+  public trees: Tree;
+}
+
+export class Cache {
+  public n: Int;
+  public chars: Listed<String>;
+  public nfa: NFA;
+  public results: MapBuilder<Int, Result>;
+  public rules: MapBuilder<String, Normal>;
+
+  public get head(): Int {
+    return n;
+  }
+
+  public set head(value: Int): Void {
+    n = value;
+  }
+}
+
+export interface Normal {
+  public id: Int;
+
+  public check(cache: Cache): Result;
+}
+
+export class NormalOr extends Normal {
+  public id: Int;
+  public v1: Normal;
+  public v2: Normal;
+  
+  public check(cache: Cache): Result {
+    var r1 = v1.check(cache);
+    var r2 = v2.check(cache);
+    if (r1.stop >= r2.stop) {
+      return r1;
+    } else {
+      return r2;
+    }
+  }
+}
+
+export class NormalAnd extends Normal {
+  public id: Int;
+  public v1: Normal;
+  public v2: Normal;
+  
+  public check(cache: Cache): Result {
+    var pos = cache.head;
+    var r1 = v1.check(cache);
+    if (r1.stop < 0) {
+      cache.head = pos;
+      return r1;
+    }
+    var r2 = v2.check(cache);
+    return new Result(r2.stop, new Node("cons", [r1.trees, r2.trees]));
+  }
+}
+
+export class NormalTerm extends Normal {
+  public id: Int;
+  public name: String;
+
+  public check(cache: Cache): Result {
+    var rname = cache.nfa.runFromName(name, cache.chars, cache.head);
+    if (rname < 0) {
+      return new Result(-1, new Error(name));
+    }
+    var got = cache.head;
+    cache.head = rname;
+    return new Result(rname, new TokenString(name));
+  }
+}
+
+export class NormalEmpty extends Normal {
+  public id: Int;
+
+  public check(cache: Cache): Result {
+    return new Result(cache.head, new TokenString("empty"))
+  }
+}
+
+export class NormalLink extends Normal {
+  public id: Int;
+  public name: String;
+
+  public check(cache: Cache): Result {
+    return cache.rules.getOr(name, noNormal).check(cache);
+  }
+}
+
+export var noNormal = new NormalEmpty(-1);
+export var noRecursive = new NormalEmpty(-1);
