@@ -43,8 +43,8 @@ with open(sys.argv[head]) as f:
     parser = Parser(f.read())
     head += 1
 t2 = clock()
-if time:
-    print(f'{floor((t2-t1)*1000)}ms')
+# if time:
+#     print(f'{floor((t2-t1)*1000)}ms')
 
 lines = 0
 chars = 0
@@ -73,5 +73,5 @@ for (file, data) in srcs:
 t2 = clock()
 
 if time:
-    print(f'files: {floor((t2-t1)*1000)}ms')
+    # print(f'files: {floor((t2-t1)*1000)}ms')
     print(f'{floor(lines/(t2-t1))} ln/s')

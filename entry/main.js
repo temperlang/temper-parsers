@@ -34,7 +34,7 @@ let parser;
     parser = new Parser(src);
     let end = new Date();
     if (time) {
-        console.log(`grammar: ${end - start}ms`);
+        // console.log(`grammar: ${end - start}ms`);
     }
 }
 
@@ -76,8 +76,7 @@ parser.mode = mode;
     }
     let end = new Date();
     if (time) {
-        console.log(`files: ${end - start}ms`);
+        // console.log(`files: ${end - start}ms`);
         console.log(`${lines * n / (end - start) * 1000 |0} ln/s`);
-        console.log(`${chars * n / (end - start) |0} chars/ms`);
     }
 }

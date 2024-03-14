@@ -50,7 +50,7 @@ local t1 = os.clock()
 local p = parser.Parser(read(arg[head]))
 local t2 = os.clock()
 if time then
-    print(string.format('grammar: %sms', math.floor((t2-t1)*1000)))
+    -- print(string.format('grammar: %sms', math.floor((t2-t1)*1000)))
 end
 
 p.mode = mode
@@ -90,7 +90,6 @@ for nth=1, n do
 end
 local t2 = os.clock()
 if time then
-    print(string.format('files: %sms', math.floor((t2-t1)*1000)))
+    -- print(string.format('files: %sms', math.floor((t2-t1)*1000)))
     print(string.format('%s ln/s', math.floor(lines*n/(t2-t1))))
-    print(string.format('%s chars/ms', math.floor(chars*n/((t2-t1)*1000))))
 end
