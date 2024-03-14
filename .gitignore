@@ -7,3 +7,4 @@ out.*
 input/*.out
 src/*.out
 jit
+.DS_Store
