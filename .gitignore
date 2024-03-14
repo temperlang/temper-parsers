@@ -1,10 +1,10 @@
-temper.out
-package-lock.json
-node_modules
 *.cpuprofile
-out.*
 *.out
-input/*.out
-src/*.out
-jit
 .DS_Store
+input/*.out
+jit
+node_modules
+out.*
+package-lock.json
+src/*.out
+temper.out

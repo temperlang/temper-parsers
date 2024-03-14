@@ -46,12 +46,7 @@ while arg[head] ~= nil and string.sub(arg[head], 1, 1) == '-' do
     end
 end
 
-local t1 = os.clock()
 local p = parser.Parser(read(arg[head]))
-local t2 = os.clock()
-if time then
-    -- print(string.format('grammar: %sms', math.floor((t2-t1)*1000)))
-end
 
 p.mode = mode
 

@@ -56,25 +56,6 @@ export class NormalAnd extends Normal {
   }
 }
 
-export class NormalTerm extends Normal {
-  public id: Int;
-  public name: String;
-
-  public check(cache: Cache): Result {
-    var rname = cache.nfa.runFromName(name, cache.chars, cache.head);
-    if (rname <= cache.head) {
-      return new ResultError(-1, name);
-    } else {
-      var got = cache.head;
-      cache.head = rname;
-      if (rname > cache.best) {
-        cache.best = rname;
-      }
-      return new ResultToken(rname, got);
-    }
-  }
-}
-
 export class NormalEmpty extends Normal {
   public id: Int;
 
@@ -90,8 +71,7 @@ export class NormalNode extends Normal {
 
   public check(cache: Cache): Result {
     var got = next.check(cache);
-    var ret = new ResultNode(got.stop, name, got);
-    return ret;  
+    return new ResultNode(got.stop, name, got);
   }
 }
 
@@ -101,11 +81,56 @@ export class NormalIgnore extends Normal {
 
   public check(cache: Cache): Result {
     var got = next.check(cache);
-    var ret = new ResultIgnore(got.stop);
-    return ret;  
+    return new ResultIgnore(got.stop);
   }
 }
 
+export class NormalToken extends Normal {
+  public id: Int;
+  public next: Normal;
+
+  public check(cache: Cache): Result {
+    var start = cache.head;
+    var got = next.check(cache);
+    if (got.stop <= start) {
+      return notChar;
+    } else {
+      return new ResultToken(got.stop, start);
+    }
+  }
+}
+
+export class NormalCharSet extends Normal {
+  public id: Int;
+  public str: String;
+  public vec: MapBuilder<String, Boolean>;
+
+  public constructor(i: Int, s: String) {
+    id = i;
+    str = s;
+    vec = new DenseBitVector(128);
+    var split = str.split("");
+    for (var i = 0; i < split.length; i++) {
+      vec[split[i]] = true;
+    }
+  }
+
+  public check(cache: Cache): Result {
+    var head = cache.head;
+    if (vec.getOr(cache.chars.getOr(head, ""), false)) {
+      var stop = head + 1;
+      if (stop > cache.best) {
+        cache.best = stop;
+      }
+      cache.head = stop;
+      return new ResultToken(stop, head);
+    } else {
+      return notChar;
+    }
+  }
+}
+
+var notChar = new ResultError(-1, "not-done");
 var notDone = new ResultError(-1, "not-done");
 var notHere = new ResultError(-1, "not-here");
 

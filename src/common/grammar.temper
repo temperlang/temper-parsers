@@ -5,6 +5,7 @@ let {...} = import("../engines/earley/char");
 let {...} = import("../engines/earley/config");
 let {...} = import("../engines/earley/lexer");
 let {...} = import("../engines/earley/set");
+let {...} = import("../engines/rec/gen/js");
 let {...} = import("../engines/rec/fnf");
 let {...} = import("../engines/rec/rules");
 let {...} = import("../larkish/ascii");
@@ -251,7 +252,15 @@ export class Grammar {
     return new Lexer(lex, r);
   }
 
-  public fnfRec(start: String): Engine {
+  public floydRecGenJS(start: String): String {
+    if (!fnfRecExists) {
+      fnfRecExists = true;
+      fnfRec = new FNFRec(start, build(), nfa());
+    }
+    return fnfRec.generateJavascript();
+  }
+
+  public floydRec(start: String): Engine {
     if (!fnfRecExists) {
       fnfRecExists = true;
       fnfRec = new FNFRec(start, build(), nfa());

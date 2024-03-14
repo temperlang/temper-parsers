@@ -1,0 +1,146 @@
+
+let {...} = import("../../../common/rules");
+let {...} = import("../normal");
+
+let idString(s: String): String {
+  return s;
+}
+
+export class GenJS {
+  private buf: ListBuilder<String>;
+  private name: MapBuilder<String, Normal>;
+  private hashes: Int;
+  private sets: ListBuilder<NormalCharSet>;
+
+  public constructor(byName: MapBuilder<String, Normal>) {
+    buf = new ListBuilder<String>();
+    name = byName;
+    hashes = 0;
+    sets = new ListBuilder<String>();
+  }
+
+  private f(n: Normal): String {
+    return "f${n.id.toString()}";
+  }
+
+  public addOr(n: NormalOr): Void {
+    buf.add("    const init = this.head;");
+    buf.add("    const r1 = this.${f(n.v1)}();");
+    buf.add("    const mid = this.head;");
+    buf.add("    this.head = init;");
+    buf.add("    const r2 = this.${f(n.v2)}();");
+    buf.add("    if (r1.stop > r2.stop) {");
+    buf.add("      this.head = mid;");
+    buf.add("      return r1;");
+    buf.add("    } else {");
+    buf.add("      return r2;");
+    buf.add("    }");
+  }
+
+  public addAnd(n: NormalAnd): Void {
+    buf.add("    const pos = this.head;");
+    buf.add("    const r1 = this.${f(n.v1)}();");
+    buf.add("    if (r1.stop < 0) {");
+    buf.add("      this.head = pos;");
+    buf.add("      return r1;");
+    buf.add("    }");
+    buf.add("    const r2 = this.${f(n.v2)}();");
+    buf.add("    return new ResultCons(r2.stop, r1, r2);");
+  }
+
+  public addEmpty(n: NormalEmpty): Void {
+    buf.add("    return new ResultEmpty(this.head);");
+  }
+
+  public addNode(n: NormalNode): Void {
+    buf.add("    const got = this.${f(n.next)}();");
+    buf.add("    return new ResultNode(got.stop, \"${n.name}\", got)");
+  }
+
+  public addIgnore(n: NormalIgnore): Void {
+    buf.add("    return new ResultIgnore(this.${f(n.next)}().stop);");
+  }
+
+  public addToken(n: NormalToken): Void {
+    buf.add("    const start = this.head;");
+    buf.add("    const got = this.${f(n.next)}();");
+    buf.add("    return new ResultToken(got.stop, start);");
+  }
+
+  public addCharSet(n: NormalCharSet): Void {
+    sets.add(n);
+    buf.add("    const head = this.head;");
+    buf.add("    if (c${n.id.toString()}[this.chars[head]]) {");
+    buf.add("      const stop = head + 1;");
+    buf.add("      if (stop >= this.best) {");
+    buf.add("        this.best = stop;");
+    buf.add("      }");
+    buf.add("      this.head = stop;");
+    buf.add("      return new ResultToken(stop, head);");
+    buf.add("    }");
+    buf.add("    return notFound;");
+  }
+
+  public addLink(n: NormalLink): Void {
+    buf.add("    const head = this.head;");
+    buf.add("    const hash = ${hashes.toString()} * this.chars.length + head;");
+    hashes += 1;
+    buf.add("    const cached = this.cache[hash];");
+    buf.add("    if (cached !== undefined) {");
+    buf.add("      this.head = cached.stop;");
+    buf.add("      return cached;");
+    buf.add("    }");
+    buf.add("    const got = this.${f(name[n.name])}();");
+    buf.add("    this.cache[hash] = got;");
+    buf.add("    return got;");
+  }
+
+  public add(n: Normal): Void {
+    buf.add("");
+    buf.add("  f${n.id.toString()}() {");
+    match (n) {
+      is NormalOr -> addOr(n);
+      is NormalAnd -> addAnd(n);
+      is NormalCharSet -> addCharSet(n);
+      is NormalEmpty -> addEmpty(n);
+      is NormalNode -> addNode(n);
+      is NormalIgnore -> addIgnore(n);
+      is NormalToken -> addToken(n);
+      is NormalLink -> addLink(n);
+    }
+    buf.add("  }");
+  }
+
+  public start(s: String): Void {
+    buf.add("import {ResultNode, ResultToken, ResultIgnore, ResultEmpty, ResultCons, ResultError} from 'temper-parsers/src/engines/rec/result.js';");
+    buf.add("const notFound = new ResultError(-1, 'not-found');");
+    buf.add("const notToken = new ResultError(-1, 'not-token');");
+    buf.add("export class Parser {");
+    buf.add("  parse(src) {");
+    buf.add("    this.head = 0;");
+    buf.add("    this.best = -1;");
+    buf.add("    this.chars = src");
+    buf.add("    this.cache = Object.create(null);");
+    buf.add("    return this.${f(name[s])}();");
+    buf.add("  }");
+  }
+
+  public stop(): Void {
+    buf.add("}");
+
+    for (var i = 0; i < sets.length; i++) {
+      var n = sets[i];
+      buf.add("");
+      var c = "c${n.id.toString()}";
+      buf.add("const ${c} = [];");
+      var split = n.str.split("");
+      for (var j = 0; j < split.length; j++) {
+        buf.add("${c}[String.fromCharCode(${split[j].codePoints.read().toString()})] = true;")
+      }
+    }
+  }
+
+  public out(): String {
+    return buf.join("\n", idString);
+  }
+}

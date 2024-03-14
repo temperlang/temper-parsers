@@ -1,7 +1,5 @@
 #!/usr/bin/env sh
 
-rm -rf out.dir
-
 # our dear temper build
 echo "--- building temper---" && temper build -b js -b py -b lua -w .
 

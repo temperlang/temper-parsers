@@ -5,6 +5,7 @@ let {...} = import("../../regex/nfa");
 let {...} = import("../engine");
 let {...} = import("./result");
 let {...} = import("./normal");
+let {...} = import("./gen/js");
 
 export class FNFRec extends Engine {
   private start: String;
@@ -37,12 +38,6 @@ export class FNFRec extends Engine {
     return ret;
   }
 
-  private makeNormalTerm(a: String): Normal {
-    var ret = new NormalTerm(byId.length, a);
-    byId.add(ret);
-    return ret;
-  }
-
   private makeNormalEmpty(): Normal {
     return normalEmpty;
   }
@@ -65,17 +60,27 @@ export class FNFRec extends Engine {
     return ret;
   }
 
+  private makeNormalToken(next: Normal): Normal {
+    var ret = new NormalToken(byId.length, next);
+    byId.add(ret);
+    return ret;
+  }
+
   private makeNormalLink(rule: String): Normal {
     var ret = new NormalLink(byId.length, rule);
+    byId.add(ret);
+    return ret;
+  }
+  
+  private makeNormalCharSet(setv: String): Normal {
+    var ret = new NormalCharSet(byId.length, setv);
     byId.add(ret);
     return ret;
   }
 
   private translatePart(part: RulePart): Normal {
     if (part.isString) {
-      console.log("{ \"isString\" = true, \"data\" = \"${part.data}\" }");
-      bubble();
-      return makeNormalEmpty();
+      return makeNormalCharSet(part.data);
     } else {
       translateName(part.data);
       return makeNormalLink(part.data);
@@ -83,10 +88,6 @@ export class FNFRec extends Engine {
   }
 
   private translateRule(rule: Rule): Normal {
-    if (rule.lex) {
-      return makeNormalTerm(rule.name);
-    }
-    // console.log(rule.name);
     var len = rule.parts.length;
     if (len == 0) {
       return makeNormalEmpty();
@@ -101,6 +102,8 @@ export class FNFRec extends Engine {
       return makeNormalIgnore(cur);
     } else if (rule.mode == "%expand") {
       return cur;
+    } else if (rule.mode == "%token") {
+      return makeNormalToken(cur);
     } else {
       return makeNormalNode(rule.mode, cur);
     }
@@ -128,5 +131,15 @@ export class FNFRec extends Engine {
       console.log("${cache.head.toString()} & ${cache.best.toString()} / ${cache.chars.length.toString()}");
     }
     return res.toTrees(cache.chars);
+  }
+
+  public generateJavascript(): String {
+    var gen = new GenJS(byName);
+    gen.start(start);
+    for (var i = 0; i < byId.length; i++) {
+      gen.add(byId[i]);
+    }
+    gen.stop();
+    return gen.out(); 
   }
 }

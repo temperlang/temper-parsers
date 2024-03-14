@@ -15,10 +15,17 @@ export class Parser {
     var tree = larky.charEarley("Grammar").trees(src)[0];
     grammar = toGrammar(tree);
   }
+
+  public comp(): String {
+    match (mode) {
+      "floyd-rec-js" -> return grammar.floydRecGenJS("__start__");
+      else -> return bubble();
+    }
+  }
   
   public parse(str: String): Tree | Bubble {
     match (mode) {
-      "floyd-rec" -> return grammar.fnfRec("__start__").trees(str)[0];
+      "floyd-rec" -> return grammar.floydRec("__start__").trees(str)[0];
       "rules-rec" -> return grammar.rulesRec("__start__").trees(str)[0];
       "char-earley" -> return grammar.charEarley("__start__").trees(str)[0];
       "lexer-earley" -> return grammar.lexerEarley("__start__").trees(str)[0];

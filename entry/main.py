@@ -38,11 +38,9 @@ while head < len(sys.argv) and sys.argv[head].startswith('-'):
     else:
         break
 
-t1 = clock()
 with open(sys.argv[head]) as f:
     parser = Parser(f.read())
     head += 1
-t2 = clock()
 # if time:
 #     print(f'{floor((t2-t1)*1000)}ms')
 
