@@ -3,25 +3,14 @@ let {...} = import("../../regex/nfa");
 let {...} = import("./result");
 
 export class Cache {
-  public n: Int;
+  public var head: Int;
   public chars: Listed<String>;
   public nfa: NFA;
   public rules: MapBuilder<String, Normal>;
   public max: Int;
   public results: MapBuilder<Int, Result> = new MapBuilder<Int, Result>();
-  public best: Int = -1;
-  public cache: MapBuilder<String, Result> = new MapBuilder<String, Result>();
-
-  public get head(): Int {
-    return n;
-  }
-
-  public set head(value: Int): Void {
-    if (value > best) {
-      best = value;
-    }
-    n = value;
-  }
+  public var best: Int = -1;
+  public cache: MapBuilder<Int, Result> = new MapBuilder<Int, Result>();
 }
 
 export interface Normal {
@@ -78,6 +67,9 @@ export class NormalTerm extends Normal {
     } else {
       var got = cache.head;
       cache.head = rname;
+      if (rname > cache.best) {
+        cache.best = rname;
+      }
       return new ResultToken(rname, got);
     }
   }
@@ -122,8 +114,7 @@ export class NormalLink extends Normal {
   public name: String;
 
   public check(cache: Cache): Result {
-    var save = cache.head;
-    var hash = "${id.toString()},${save.toString()}";
+    var hash = id * cache.chars.length + cache.head;
     var cached = cache.cache.getOr(hash, notHere);
     if (cached != notHere) {
       cache.head = cached.stop;

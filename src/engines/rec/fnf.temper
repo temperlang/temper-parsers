@@ -127,6 +127,6 @@ export class FNFRec extends Engine {
     if (res.stop != cache.chars.length) {
       console.log("${cache.head.toString()} & ${cache.best.toString()} / ${cache.chars.length.toString()}");
     }
-    return [new Node(start, res.toTrees(cache.chars)).as<Tree>()];
+    return res.toTrees(cache.chars);
   }
 }
