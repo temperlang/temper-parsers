@@ -53,6 +53,24 @@ export class FNFRec extends Engine {
     return ret;
   }
 
+  private makeNormalNode(name: String, next: Normal): Normal {
+    var ret = new NormalNode(byId.length, name, next);
+    byId.add(ret);
+    return ret;
+  }
+
+  private makeNormalIgnore(next: Normal): Normal {
+    var ret = new NormalIgnore(byId.length, next);
+    byId.add(ret);
+    return ret;
+  }
+
+  private makeNormalLink(rule: String): Normal {
+    var ret = new NormalLink(byId.length, rule);
+    byId.add(ret);
+    return ret;
+  }
+
   private translatePart(part: RulePart): Normal {
     if (part.isString) {
       console.log("{ \"isString\" = true, \"data\" = \"${part.data}\" }");
@@ -79,6 +97,13 @@ export class FNFRec extends Engine {
       var translation = translatePart(part);
       cur = makeNormalAnd(translation, cur);
     }
+    if (rule.mode == "%ignore") {
+      return makeNormalIgnore(cur);
+    } else if (rule.mode == "%expand") {
+      return cur;
+    } else {
+      return makeNormalNode(rule.mode, cur);
+    }
     return cur;
   }
 
@@ -99,7 +124,9 @@ export class FNFRec extends Engine {
   public trees(src: String): Listed<Tree> {
     var cache = new Cache(0, src.split(""), nfa, byName, byId.length);
     var res = byName[start].check(cache);
-    console.log("${res.stop.toString()} & ${cache.best.toString()} / ${cache.chars.length.toString()}");
+    if (res.stop != cache.chars.length) {
+      console.log("${cache.head.toString()} & ${cache.best.toString()} / ${cache.chars.length.toString()}");
+    }
     return [new Node(start, res.toTrees(cache.chars)).as<Tree>()];
   }
 }

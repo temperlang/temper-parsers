@@ -103,6 +103,17 @@ export class NormalNode extends Normal {
   }
 }
 
+export class NormalIgnore extends Normal {
+  public id: Int;
+  public next: Normal;
+
+  public check(cache: Cache): Result {
+    var got = next.check(cache);
+    var ret = new ResultIgnore(got.stop);
+    return ret;  
+  }
+}
+
 var notDone = new ResultError(-1, "not-done");
 var notHere = new ResultError(-1, "not-here");
 

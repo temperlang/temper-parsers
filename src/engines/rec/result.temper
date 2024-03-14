@@ -66,3 +66,11 @@ export class ResultNode extends Result {
     return [t];
   }
 }
+
+export class ResultIgnore extends Result {
+  public stop: Int;
+
+  public toTrees(chars: Listed<String>): Listed<Tree> {
+    return [];
+  }
+}
