@@ -1,10 +1,18 @@
 
 let {...} = import("../../common/tree");
 
+let treeToString(t: Tree): String {
+  return t.toString();
+}
+
 export interface Result {
   public stop: Int;
 
-  public toTrees(chars: Listed<String>): Listed<Tree> ;
+  public toTrees(chars: Listed<String>): Listed<Tree>;
+
+  public toString(chars: Listed<String>): String {
+    return toTrees(chars).join(" :: ", treeToString);
+  }
 }
 
 export class ResultError extends Result {
@@ -48,11 +56,10 @@ export class ResultEmpty extends Result {
   }
 }
 
-export class ResultLink extends Result {
+export class ResultNode extends Result {
   public stop: Int;
   public name: String;
   public value: Result;
-
 
   public toTrees(chars: Listed<String>): Listed<Tree> {
     var t: Tree = new Node(name, value.toTrees(chars));

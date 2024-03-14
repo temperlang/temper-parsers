@@ -222,6 +222,8 @@ export class Grammar {
   private mLex: ListBuilder<Boolean>;
   private lexerExists: Boolean;
   private lexerValue: NFA;
+  private fnfRecExists: Boolean;
+  private fnfRec: FNFRec;
 
   public constructor(): Void {
     rname = "";
@@ -232,6 +234,7 @@ export class Grammar {
     lex = new Rules();
     nonLex = new Rules();
     lexerExists = false;
+    fnfRecExists = false;
   }
 
   private nfa(): NFA {
@@ -249,7 +252,11 @@ export class Grammar {
   }
 
   public fnfRec(start: String): Engine {
-    return new FNFRec(start, build(), nfa());
+    if (!fnfRecExists) {
+      fnfRecExists = true;
+      fnfRec = new FNFRec(start, build(), nfa());
+    }
+    return fnfRec;
   }
 
   public rulesRec(start: String): Engine {

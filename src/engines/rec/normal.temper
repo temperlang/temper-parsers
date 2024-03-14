@@ -7,8 +7,10 @@ export class Cache {
   public chars: Listed<String>;
   public nfa: NFA;
   public rules: MapBuilder<String, Normal>;
+  public max: Int;
   public results: MapBuilder<Int, Result> = new MapBuilder<Int, Result>();
   public best: Int = -1;
+  public cache: MapBuilder<String, Result> = new MapBuilder<String, Result>();
 
   public get head(): Int {
     return n;
@@ -89,13 +91,36 @@ export class NormalEmpty extends Normal {
   }
 }
 
+export class NormalNode extends Normal {
+  public id: Int;
+  public name: String;
+  public next: Normal;
+
+  public check(cache: Cache): Result {
+    var got = next.check(cache);
+    var ret = new ResultNode(got.stop, name, got);
+    return ret;  
+  }
+}
+
+var notDone = new ResultError(-1, "not-done");
+var notHere = new ResultError(-1, "not-here");
+
 export class NormalLink extends Normal {
   public id: Int;
   public name: String;
 
   public check(cache: Cache): Result {
+    var save = cache.head;
+    var hash = "${id.toString()},${save.toString()}";
+    var cached = cache.cache.getOr(hash, notHere);
+    if (cached != notHere) {
+      cache.head = cached.stop;
+      return cached;
+    }
     var got = cache.rules.getOr(name, noNormal).check(cache);
-    return new ResultLink(got.stop, name, got);
+    cache.cache[hash] = got;
+    return got;
   }
 }
 

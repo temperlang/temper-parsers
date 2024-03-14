@@ -1,5 +1,5 @@
 
-start?: program
+start: program
 
 program: stmt* (stmt | expr)?
 
@@ -7,16 +7,16 @@ block_body: stmt* (stmt | expr)?
 
 stmt: var_decl | func_decl | expr_stmt | func_def | for_stmt | while_stmt | if_stmt | class_def | interface_def | match_stmt
 
-var_decl?: var_decl_no_semi ";"
+var_decl: var_decl_no_semi ";"
 expr_stmt: expr ";"
 
-do_stmt?: do_expr
-if_stmt?: if_expr
+do_stmt: do_expr
+if_stmt: if_expr
 
 for_stmt: "for" "(" (var_decl_no_semi | expr) ";" expr_opt ";" expr_opt ")" "{" block_body "}"
 
 expr_opt: ()
-expr_opt?: expr
+expr_opt: expr
 
 while_stmt: "while" "(" expr ")" "{" block_body "}"
 
@@ -60,7 +60,7 @@ func_class: "private"? "static" "let" -> private_static_let
 func_class: "public" "static" "let" -> public_static_let
 func_class: "private"? "static" "const" -> private_static_const
 func_class: "public" "static" "const" -> public_static_const
-func_class?: var_class
+func_class: var_class
 
 var_class: "private" -> private
 var_class: "public" -> public
@@ -77,10 +77,10 @@ var_class: "private" "const" -> private_const
 var_class: "public" "const" -> public_const
 var_class: "export" "const" -> export_const
 
-expr?: assign
+expr: assign
 
 assign: postfix ("+="! | "*="! | "/="! | "-="! | "%="! | "="!) orelse
-assign?: orelse
+assign: orelse
 
 orelse: logic ("orelse" logic)*
 
@@ -99,8 +99,8 @@ prefix: "++" postfix -> pre_inc
 prefix: "--" postfix -> pre_dec
 prefix: "!" postfix -> not
 prefix: "return" expr? -> return
-prefix?: "+" postfix
-prefix?: postfix
+prefix: "+" postfix
+prefix: postfix
 
 postfix_op: "++" -> post_inc
 postfix_op: "--" -> post_dec
@@ -110,11 +110,11 @@ postfix_op: "." "as" "<" type ">" "(" ")" -> post_cast
 postfix_op: "(" (expr ",")* expr? ")" block_arg? -> post_call
 postfix_op: block_arg -> post_call
 postfix: single postfix_op+
-postfix?: single
+postfix: single
 
 block_arg: "{" (func_type ";;") block_body "}"
 
-single?: ident | fn_expr | if_expr | do_expr | new_expr | string | int | float | array | "(" expr ")"
+single: ident | fn_expr | if_expr | do_expr | new_expr | string | int | float | array | "(" expr ")"
 
 new_expr: "new" type "(" (expr ",")* expr? ")" -> post_new
 do_expr: "do" "{" block_body "}"

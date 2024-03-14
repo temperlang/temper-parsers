@@ -23,16 +23,6 @@ export class FNFRec extends Engine {
     normalEmpty = new NormalEmpty(byId.length);
     byId.add(normalEmpty);
     translateName(s);
-    // for (var i = 0; i < rules.rules.length; i++) {
-    //   var rule = rules.rules[i];
-    //   var named = byName.getOr(rule.name, noNormal);
-    //   var translation = translateRule(rule);
-    //   if (named == noNormal) {
-    //     byName[rule.name] = translation;
-    //   } else {
-    //     byName[rule.name] = makeNormalOr(named, translation);
-    //   }
-    // }
   }
 
   private makeNormalOr(a: Normal, b: Normal): Normal {
@@ -107,9 +97,9 @@ export class FNFRec extends Engine {
   }
 
   public trees(src: String): Listed<Tree> {
-    var cache = new Cache(0, src.split(""), nfa, byName,);
+    var cache = new Cache(0, src.split(""), nfa, byName, byId.length);
     var res = byName[start].check(cache);
     console.log("${res.stop.toString()} & ${cache.best.toString()} / ${cache.chars.length.toString()}");
-    return [new Node("__start__", res.toTrees(cache.chars)).as<Tree>()];
+    return [new Node(start, res.toTrees(cache.chars)).as<Tree>()];
   }
 }
