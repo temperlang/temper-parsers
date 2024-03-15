@@ -11,93 +11,119 @@ export class GenJS {
   private name: MapBuilder<String, Normal>;
   private hashes: Int;
   private sets: ListBuilder<NormalCharSet>;
+  private depth: Int;
 
   public constructor(byName: MapBuilder<String, Normal>) {
     buf = new ListBuilder<String>();
     name = byName;
     hashes = 0;
     sets = new ListBuilder<String>();
+    depth = 0;
   }
 
   private f(n: Normal): String {
     return "f${n.id.toString()}";
   }
 
+  public push(s: String): Void {
+    if (s == "") {
+      buf.add(s);
+    } else {
+      for (var i = 0; i < depth; i++) {
+        s = "  ${s}";
+      }
+      buf.add(s);
+    }
+  }
+
   public addOr(n: NormalOr): Void {
-    buf.add("    const init = this.head;");
-    buf.add("    const r1 = this.${f(n.v1)}();");
-    buf.add("    const mid = this.head;");
-    buf.add("    this.head = init;");
-    buf.add("    const r2 = this.${f(n.v2)}();");
-    buf.add("    if (r1.stop > r2.stop) {");
-    buf.add("      this.head = mid;");
-    buf.add("      return r1;");
-    buf.add("    } else {");
-    buf.add("      return r2;");
-    buf.add("    }");
+    push("const init = this.head;");
+    push("const r1 = this.${f(n.v1)}();");
+    push("const mid = this.head;");
+    push("this.head = init;");
+    push("const r2 = this.${f(n.v2)}();");
+    push("if (r1.stop > r2.stop) {");
+    depth += 1;
+    push("this.head = mid;");
+    push("return r1;");
+    depth -= 1;
+    push("} else {");
+    depth += 1;
+    push("return r2;");
+    depth -= 1;
+    push("}");
   }
 
   public addAnd(n: NormalAnd): Void {
-    buf.add("    const pos = this.head;");
-    buf.add("    const r1 = this.${f(n.v1)}();");
-    buf.add("    if (r1.stop < 0) {");
-    buf.add("      this.head = pos;");
-    buf.add("      return r1;");
-    buf.add("    }");
-    buf.add("    const r2 = this.${f(n.v2)}();");
-    buf.add("    return new ResultCons(r2.stop, r1, r2);");
+    push("const pos = this.head;");
+    push("const r1 = this.${f(n.v1)}();");
+    push("if (r1.stop < 0) {");
+    depth += 1;
+    push("this.head = pos;");
+    push("return r1;");
+    depth -= 1;
+    push("}");
+    push("const r2 = this.${f(n.v2)}();");
+    push("return new ResultCons(r2.stop, r1, r2);");
   }
 
   public addEmpty(n: NormalEmpty): Void {
-    buf.add("    return new ResultEmpty(this.head);");
+    push("return new ResultEmpty(this.head);");
   }
 
   public addNode(n: NormalNode): Void {
-    buf.add("    const got = this.${f(n.next)}();");
-    buf.add("    return new ResultNode(got.stop, \"${n.name}\", got)");
+    push("const got = this.${f(n.next)}();");
+    push("return new ResultNode(got.stop, \"${n.name}\", got)");
   }
 
   public addIgnore(n: NormalIgnore): Void {
-    buf.add("    return new ResultIgnore(this.${f(n.next)}().stop);");
+    push("return new ResultIgnore(this.${f(n.next)}().stop);");
   }
 
   public addToken(n: NormalToken): Void {
-    buf.add("    const start = this.head;");
-    buf.add("    const got = this.${f(n.next)}();");
-    buf.add("    return new ResultToken(got.stop, start);");
+    push("const start = this.head;");
+    push("const got = this.${f(n.next)}();");
+    push("return new ResultToken(got.stop, start);");
   }
 
   public addCharSet(n: NormalCharSet): Void {
     sets.add(n);
-    buf.add("    const head = this.head;");
-    buf.add("    if (c${n.id.toString()}[this.chars[head]]) {");
-    buf.add("      const stop = head + 1;");
-    buf.add("      if (stop >= this.best) {");
-    buf.add("        this.best = stop;");
-    buf.add("      }");
-    buf.add("      this.head = stop;");
-    buf.add("      return new ResultToken(stop, head);");
-    buf.add("    }");
-    buf.add("    return notFound;");
+    push("const head = this.head;");
+    push("if (c${n.id.toString()}[this.chars[head]]) {");
+    depth += 1;
+    push("const stop = head + 1;");
+    push("if (stop >= this.best) {");
+    depth += 1;
+    push("this.best = stop;");
+    depth -= 1;
+    push("}");
+    push("this.head = stop;");
+    push("return new ResultToken(stop, head);");
+    depth -= 1;
+    push("}");
+    push("return notFound;");
   }
 
   public addLink(n: NormalLink): Void {
-    buf.add("    const head = this.head;");
-    buf.add("    const hash = ${hashes.toString()} * this.chars.length + head;");
+    push("const head = this.head;");
+    push("const hash = ${hashes.toString()} * this.chars.length + head;");
     hashes += 1;
-    buf.add("    const cached = this.cache.get(hash);");
-    buf.add("    if (cached !== undefined) {");
-    buf.add("      this.head = cached.stop;");
-    buf.add("      return cached;");
-    buf.add("    }");
-    buf.add("    const got = this.${f(name[n.name])}();");
-    buf.add("    this.cache.set(hash, got);");
-    buf.add("    return got;");
+    push("const cached = this.cache.get(hash);");
+    push("if (cached !== undefined) {");
+    depth += 1;
+    push("this.head = cached.stop;");
+    push("return cached;");
+    depth -= 1;
+    push("}");
+    push("const got = this.${f(name[n.name])}();");
+    push("this.cache.set(hash, got);");
+    push("return got;");
   }
 
   public add(n: Normal): Void {
-    buf.add("");
-    buf.add("  f${n.id.toString()}() {");
+    push("");
+    push("f${n.id.toString()}() {");
+    depth += 1;
     match (n) {
       is NormalOr -> addOr(n);
       is NormalAnd -> addAnd(n);
@@ -108,34 +134,39 @@ export class GenJS {
       is NormalToken -> addToken(n);
       is NormalLink -> addLink(n);
     }
-    buf.add("  }");
+    depth -= 1;
+    push("  }");
   }
 
   public start(s: String): Void {
-    buf.add("import {ResultNode, ResultToken, ResultIgnore, ResultEmpty, ResultCons, ResultError} from 'temper-parsers/src/engines/fnf/result.js';");
-    buf.add("const notFound = new ResultError(-1, 'not-found');");
-    buf.add("const notToken = new ResultError(-1, 'not-token');");
-    buf.add("export class Parser {");
-    buf.add("  parse(src) {");
-    buf.add("    this.head = 0;");
-    buf.add("    this.best = -1;");
-    buf.add("    this.chars = src;");
-    buf.add("    this.cache = new Map();");
-    buf.add("    return this.${f(name[s])}();");
-    buf.add("  }");
+    push("import {ResultNode, ResultToken, ResultIgnore, ResultEmpty, ResultCons, ResultError} from 'temper-parsers/src/engines/fnf/result.js';");
+    push("const notFound = new ResultError(-1, 'not-found');");
+    push("const notToken = new ResultError(-1, 'not-token');");
+    push("export class Parser {");
+    depth += 1;
+    push("parse(src) {");
+    depth += 1;
+    push("this.head = 0;");
+    push("this.best = -1;");
+    push("this.chars = src;");
+    push("this.cache = new Map();");
+    push("return this.${f(name[s])}();");
+    depth -= 1;
+    push("}");
   }
 
   public stop(): Void {
-    buf.add("}");
+    push("}");
+    depth -= 1;
 
     for (var i = 0; i < sets.length; i++) {
       var n = sets[i];
-      buf.add("");
+      push("");
       var c = "c${n.id.toString()}";
-      buf.add("const ${c} = [];");
+      push("const ${c} = [];");
       var split = n.str.split("");
       for (var j = 0; j < split.length; j++) {
-        buf.add("${c}[String.fromCharCode(${split[j].codePoints.read().toString()})] = true;")
+        push("${c}[String.fromCharCode(${split[j].codePoints.read().toString()})] = true;")
       }
     }
   }
