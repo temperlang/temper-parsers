@@ -1,6 +1,6 @@
 
-let {...} = import("../../../common/rules");
-let {...} = import("../normal");
+let {...} = import("../../common/rules");
+let {...} = import("./normal");
 
 let idString(s: String): String {
   return s;
@@ -85,13 +85,13 @@ export class GenJS {
     buf.add("    const head = this.head;");
     buf.add("    const hash = ${hashes.toString()} * this.chars.length + head;");
     hashes += 1;
-    buf.add("    const cached = this.cache[hash];");
+    buf.add("    const cached = this.cache.get(hash);");
     buf.add("    if (cached !== undefined) {");
     buf.add("      this.head = cached.stop;");
     buf.add("      return cached;");
     buf.add("    }");
     buf.add("    const got = this.${f(name[n.name])}();");
-    buf.add("    this.cache[hash] = got;");
+    buf.add("    this.cache.set(hash, got);");
     buf.add("    return got;");
   }
 
@@ -112,15 +112,15 @@ export class GenJS {
   }
 
   public start(s: String): Void {
-    buf.add("import {ResultNode, ResultToken, ResultIgnore, ResultEmpty, ResultCons, ResultError} from 'temper-parsers/src/engines/rec/result.js';");
+    buf.add("import {ResultNode, ResultToken, ResultIgnore, ResultEmpty, ResultCons, ResultError} from 'temper-parsers/src/engines/fnf/result.js';");
     buf.add("const notFound = new ResultError(-1, 'not-found');");
     buf.add("const notToken = new ResultError(-1, 'not-token');");
     buf.add("export class Parser {");
     buf.add("  parse(src) {");
     buf.add("    this.head = 0;");
     buf.add("    this.best = -1;");
-    buf.add("    this.chars = src");
-    buf.add("    this.cache = Object.create(null);");
+    buf.add("    this.chars = src;");
+    buf.add("    this.cache = new Map();");
     buf.add("    return this.${f(name[s])}();");
     buf.add("  }");
   }

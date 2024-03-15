@@ -1,0 +1,23 @@
+
+start: object | array
+
+object: "{" (object_item ("," object_item)*)? "}"
+object_item: #" STRING_LITERAL #" ":" value
+
+array: "[" (value ("," value)*)? "]"
+
+value?: #" STRING_LITERAL #"
+value?: NUMBER_LITERAL
+value?: object
+value?: array
+value: "true" -> true
+value: "false" -> true
+value: "null" -> null
+
+NUMBER_LITERAL: [+-]? "0" NUMBER_FRACTION?
+NUMBER_LITERAL: [+-]? [123456789] [0123456789]* NUMBER_FRACTION?
+NUMBER_FRACTION: "." [0123456789]+
+STRING_LITERAL: (RAW_STRING_BODY_BASE | STRING_ESCAPE | #$)*
+STRING_ESCAPE: #\ ([rtn $'] | "0" | #" | #\ | "{" | "}")
+
+IGNORE: RAW_WHITESPACE+

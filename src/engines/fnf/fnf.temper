@@ -5,7 +5,7 @@ let {...} = import("../../regex/nfa");
 let {...} = import("../engine");
 let {...} = import("./result");
 let {...} = import("./normal");
-let {...} = import("./gen/js");
+let {...} = import("./js");
 
 export class FNFRec extends Engine {
   private start: String;
@@ -14,6 +14,7 @@ export class FNFRec extends Engine {
   private byId: ListBuilder<Normal>;
   private byName: MapBuilder<String, Normal>;
   private normalEmpty: Normal;
+  private cache: MapBuilder<String, Normal>;
 
   public constructor(s: String, r: Rules, n: NFA): Void {
     start = s;
@@ -22,18 +23,31 @@ export class FNFRec extends Engine {
     byId = new ListBuilder<Normal>();
     byName = new MapBuilder<String, Normal>();
     normalEmpty = new NormalEmpty(byId.length);
+    cache = new MapBuilder<String, Normal>();
     byId.add(normalEmpty);
     translateName(s);
   }
 
   private makeNormalOr(a: Normal, b: Normal): Normal {
+    var hash = "${a.id.toString()}|${b.id.toString()}";
+    var got = cache.getOr(hash, normalEmpty);
+    if (got != normalEmpty) {
+      return got;
+    }
     var ret = new NormalOr(byId.length, a, b);
+    cache[hash] = ret;
     byId.add(ret);
     return ret;
   }
 
   private makeNormalAnd(a: Normal, b: Normal): Normal {
+    var hash = "${a.id.toString()}&${b.id.toString()}";
+    var got = cache.getOr(hash, normalEmpty);
+    if (got != normalEmpty) {
+      return got;
+    }
     var ret = new NormalAnd(byId.length, a, b);
+    cache[hash] = ret;
     byId.add(ret);
     return ret;
   }
@@ -43,7 +57,13 @@ export class FNFRec extends Engine {
   }
 
   private makeNormalLink(rule: String): Normal {
+    var hash = ">${rule}";
+    var got = cache.getOr(hash, normalEmpty);
+    if (got != normalEmpty) {
+      return got;
+    }
     var ret = new NormalLink(byId.length, rule);
+    cache[hash] = ret;
     byId.add(ret);
     return ret;
   }
