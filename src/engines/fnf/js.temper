@@ -135,7 +135,7 @@ export class GenJS {
       is NormalLink -> addLink(n);
     }
     depth -= 1;
-    push("  }");
+    push("}");
   }
 
   public start(s: String): Void {
