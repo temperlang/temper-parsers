@@ -9,5 +9,8 @@
     "let-name-parser": "file:temper.out/js/let-name-parser",
     "temper-parsers": "file:temper.out/js/temper-parsers",
     "work-template": "file:temper.out/js/work-template"
+  },
+  "devDependencies": {
+    "json5": "^2.2.3"
   }
 }

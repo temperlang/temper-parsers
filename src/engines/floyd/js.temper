@@ -1,0 +1,234 @@
+
+let {...} = import("../../common/rules");
+let {...} = import("./normal");
+
+let idString(s: String): String {
+  return s;
+}
+
+export class GenJS {
+  private buf: ListBuilder<String>;
+  private name: MapBuilder<String, Normal>;
+  private hashes: Int;
+  private sets: ListBuilder<NormalCharSet>;
+  private depth: Int;
+  private syms: MapBuilder<String, Int>;
+  private done: DenseBitVector;
+  private todo: ListBuilder<Normal>;
+
+  public constructor(byName: MapBuilder<String, Normal>) {
+    buf = new ListBuilder<String>();
+    name = byName;
+    hashes = 0;
+    sets = new ListBuilder<String>();
+    depth = 0;
+    syms = new MapBuilder<String, Int>();
+    done = new DenseBitVector(0);
+    todo = new ListBuilder<Normal>();
+  }
+
+  private gensym(name: String): String {
+    var got = syms.getOr(name, 0);
+    var ret = "${name}_${got.toString()}";
+    syms[name] = got + 1;
+    return ret;
+  }
+
+  private f(n: Normal): String {
+    return "f${n.id.toString()}";
+  }
+
+  private inline(n: Normal): String {
+    return emit(n);
+  }
+
+  public push(s: String): Void {
+    if (s == "") {
+      buf.add(s);
+    } else {
+      for (var i = 0; i < depth; i++) {
+        s = "  ${s}";
+      }
+      buf.add(s);
+    }
+  }
+
+  public emitOr(n: NormalOr): String {
+    var init = gensym("init");
+    var mid = gensym("mid");
+    var or = gensym("or");
+    push("let ${init} = this.head;");
+    var r1 = inline(n.v1);
+    push("let ${mid} = this.head;");
+    push("this.head = ${init};");
+    var r2 = inline(n.v2);
+    push("if (${r1}.stop > ${r2}.stop) {");
+    depth += 1;
+    push("this.head = ${mid};");
+    push("${r2} = ${r1};");
+    depth -= 1;
+    push("}");
+    return r2;
+  }
+
+  public emitAnd(n: NormalAnd): String {
+    var pos = gensym("init");
+    push("let ${pos} = this.head;");
+    var r1 = inline(n.v1);
+    push("if (${r1}.stop < 0) {");
+    depth += 1;
+    push("this.head = ${pos};");
+    depth -= 1;
+    push("} else {");
+    depth += 1;
+    var r2 = inline(n.v2);
+    push("${r1} = new ResultCons(${r2}.stop, ${r1}, ${r2});");
+    depth -= 1;
+    push("}");
+    return r1;
+  }
+
+  public emitEmpty(n: NormalEmpty): String {
+    var empty = gensym("empty");
+    push("let ${empty} = new ResultEmpty(this.head);");
+    return empty;
+  }
+
+  public emitNode(n: NormalNode): String {
+    var node = gensym("node");
+    var got = inline(n.next);
+    push("let ${node} = new ResultNode(${got}.stop, \"${n.name}\", ${got})");
+    return node;
+  }
+
+  public emitIgnore(n: NormalIgnore): String {
+    var ignore = gensym("ignore");
+    var mid = inline(n.next);
+    push("let ${ignore} = new ResultIgnore(${mid}.stop);");
+    return ignore;
+  }
+
+  public emitToken(n: NormalToken): String {
+    var start = gensym("start");
+    var token = gensym("token");
+    push("let ${start} = this.head;");
+    var got = inline(n.next);
+    push("let ${token} = new ResultToken(${got}.stop, ${start});");
+    return token;
+  }
+
+  public emitCharSet(n: NormalCharSet): String {
+    var head = gensym("head");
+    var stop = gensym("stop");
+    var chars = gensym("chars");
+    sets.add(n);
+    push("let ${head} = this.head;");
+    push("let ${chars} = notFound;");
+    push("if (c${n.id.toString()}[this.chars[${head}]]) {");
+    depth += 1;
+    push("let ${stop} = ${head} + 1;");
+    push("if (${stop} >= this.best) {");
+    depth += 1;
+    push("this.best = ${stop};");
+    depth -= 1;
+    push("}");
+    push("this.head = ${stop};");
+    push("${chars} = new ResultToken(${stop}, ${head});");
+    depth -= 1;
+    push("}");
+    return chars;
+  }
+
+  public emitLink(n: NormalLink): String {
+    var head = gensym("head");
+    var hash = gensym("hash");
+    var got = gensym("got");
+    push("let ${head} = this.head;");
+    push("let ${hash} = ${hashes.toString()} * this.chars.length + ${head};");
+    hashes += 1;
+    push("let ${got} = this.cache.get(${hash});");
+    push("if (${got} !== undefined) {");
+    depth += 1;
+    push("this.head = ${got}.stop;");
+    depth -= 1;
+    push("} else {");
+    depth += 1;
+    push("${got} = this.${f(name[n.name])}();");
+    push("this.cache.set(${hash}, ${got});");
+    depth -= 1;
+    push("}");
+    then(name[n.name]);
+    return got;
+  }
+
+  public emit(n: Normal): String {
+    match (n) {
+      is NormalOr -> return emitOr(n);
+      is NormalAnd -> return emitAnd(n);
+      is NormalCharSet -> return emitCharSet(n);
+      is NormalEmpty -> return emitEmpty(n);
+      is NormalNode -> return emitNode(n);
+      is NormalIgnore -> return emitIgnore(n);
+      is NormalToken -> return emitToken(n);
+      is NormalLink -> return emitLink(n);
+      else -> return bubble();
+    }
+  }
+
+  public then(n: Normal): Void {
+    if (!done[n.id]) {
+      done[n.id] = true;
+      todo.add(n);
+    }
+  }
+
+  public add(n: Normal): Void {
+    push("");
+    push("f${n.id.toString()}() {");
+    syms = new MapBuilder<String, Int>();
+    depth += 1;
+    var got = emit(n);
+    push("return ${got};");
+    depth -= 1;
+    push("}");
+  }
+
+  public start(s: String): String {
+    push("import {ResultNode, ResultToken, ResultIgnore, ResultEmpty, ResultCons, ResultError} from 'temper-parsers/src/engines/floyd/result.js';");
+    push("let notFound = new ResultError(-1, 'not-found');");
+    push("export class Parser {");
+    depth += 1;
+    push("parse(src) {");
+    depth += 1;
+    push("this.head = 0;");
+    push("this.best = -1;");
+    push("this.chars = src;");
+    push("this.cache = new Map();");
+    push("return this.${f(name[s])}();");
+    depth -= 1;
+    push("}");
+    then(name[s]);
+    for (var i = 0; i < todo.length; i++) {
+      add(todo[i]);
+    }
+    depth -= 1;
+    push("}");
+
+    var done = new DenseBitVector(0);
+    for (var i = 0; i < sets.length; i++) {
+      var n = sets[i];
+      if (!done[n.id]) {
+        done[n.id] = true;
+        push("");
+        var c = "c${n.id.toString()}";
+        push("let ${c} = [];");
+        var split = n.str.split("");
+        for (var j = 0; j < split.length; j++) {
+          push("${c}[String.fromCharCode(${split[j].codePoints.read().toString()})] = true;")
+        }
+      }
+    }
+
+    return buf.join("\n", idString);
+  }
+}

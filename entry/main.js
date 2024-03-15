@@ -3,6 +3,7 @@
 import {readFileSync, writeFileSync, mkdirSync, existsSync, mkdir} from 'fs';
 import {Parser, Tree, format} from 'temper-parsers/all-exports.js';
 import {argv} from 'process';
+import JSON5 from 'json5';
 
 let n = 1;
 let mode = 'rules-rec';
@@ -27,9 +28,10 @@ while (argv[2].startsWith('-')) {
     }
 }
 
+let grammar = argv[2];
 let parser;
 {
-    const src = String(readFileSync(argv[2]));
+    const src = String(readFileSync(grammar));
     parser = new Parser(src);
 }
 
@@ -44,6 +46,25 @@ for (let i = 3; i < argv.length; i++) {
     lines += data.split('\n').length;
     chars += data.length;
 }
+
+// if (grammar === 'grammars/json') {
+//     let start = new Date();
+//     for (let i = 0; i < n; i++) {
+//         for (const [file, data] of strs) {
+//             let res = null;
+//             try {
+//                 res = JSON5.parse(data);
+//             } catch (e) {
+//                 console.error(e);
+//                 console.log(`fail ${file}`);
+//             }
+//         }
+//     }
+//     let end = new Date();
+//     if (time) {
+//         console.log(`JSON5.parse: ${lines * n / (end - start) * 1000 |0} ln/s`);
+//     }
+// };
 
 if (mode === 'floyd-rec-js') {
     parser.mode = mode;
@@ -61,7 +82,7 @@ if (mode === 'floyd-rec-js') {
             for (const [file, data] of strs) {
                 let res = null;
                 try {
-                    res = parser.parse(data);
+                    res = parser.parse(data.split(""));
                 } catch (e) {
                     console.error(e);
                     console.log(`fail ${file}`);
@@ -106,7 +127,8 @@ if (mode === 'floyd-rec-js') {
                         console.log(format(res));
                     }
                 } else {
-                    console.log(`fail ${file}`);
+                            console.error(res);
+                            console.log(`fail ${file}`);
                 }
             }
         }

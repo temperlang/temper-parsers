@@ -7,7 +7,7 @@ let {...} = import("./result");
 let {...} = import("./normal");
 let {...} = import("./js");
 
-export class FNFRec extends Engine {
+export class FloydRec extends Engine {
   private start: String;
   private rules: Rules;
   private nfa: NFA;
@@ -154,12 +154,6 @@ export class FNFRec extends Engine {
   }
 
   public generateJavascript(): String {
-    var gen = new GenJS(byName);
-    gen.start(start);
-    for (var i = 0; i < byId.length; i++) {
-      gen.add(byId[i]);
-    }
-    gen.stop();
-    return gen.out(); 
+    return new GenJS(byName).start(start);
   }
 }

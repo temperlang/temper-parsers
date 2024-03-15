@@ -48,12 +48,7 @@ export class RulesRec extends Engine {
     if (rule.lex) {
       var got = nfa.runFromName(rule.name, str, n);
       if (got > n) {
-        var ls = new ListBuilder<String>();
-        for (var i = n; i < got; i++) {
-          ls.add(str.getOr(i, ""));
-        }
-        var joined = ls.join("", idString);
-        var t: Tree = new TokenString(joined);
+        var t: Tree = new TokenSlice(str, n, got);
         return new Result(got, [t]);
       }
       return noResult;

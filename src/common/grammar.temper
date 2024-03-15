@@ -5,8 +5,8 @@ let {...} = import("../engines/earley/char");
 let {...} = import("../engines/earley/config");
 let {...} = import("../engines/earley/lexer");
 let {...} = import("../engines/earley/set");
-let {...} = import("../engines/fnf/fnf");
-let {...} = import("../engines/rec/rules");
+let {...} = import("../engines/floyd/floyd");
+let {...} = import("../engines/rules/rules");
 let {...} = import("../larkish/ascii");
 let {...} = import("../regex/nfa");
 let {...} = import("./items");
@@ -222,8 +222,8 @@ export class Grammar {
   private mLex: ListBuilder<Boolean>;
   private lexerExists: Boolean;
   private lexerValue: NFA;
-  private fnfRecExists: Boolean;
-  private fnfRec: FNFRec;
+  private floydRecExists: Boolean;
+  private floydRec: FloydRec;
 
   public constructor(): Void {
     rname = "";
@@ -234,7 +234,7 @@ export class Grammar {
     lex = new Rules();
     nonLex = new Rules();
     lexerExists = false;
-    fnfRecExists = false;
+    floydRecExists = false;
   }
 
   private nfa(): NFA {
@@ -252,19 +252,19 @@ export class Grammar {
   }
 
   public floydRecGenJS(start: String): String {
-    if (!fnfRecExists) {
-      fnfRecExists = true;
-      fnfRec = new FNFRec(start, build(), nfa());
+    if (!floydRecExists) {
+      floydRecExists = true;
+      floydRec = new FloydRec(start, build(), nfa());
     }
-    return fnfRec.generateJavascript();
+    return floydRec.generateJavascript();
   }
 
   public floydRec(start: String): Engine {
-    if (!fnfRecExists) {
-      fnfRecExists = true;
-      fnfRec = new FNFRec(start, build(), nfa());
+    if (!floydRecExists) {
+      floydRecExists = true;
+      floydRec = new FloydRec(start, build(), nfa());
     }
-    return fnfRec;
+    return floydRec;
   }
 
   public rulesRec(start: String): Engine {
