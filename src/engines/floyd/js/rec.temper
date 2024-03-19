@@ -1,12 +1,12 @@
 
-let {...} = import("../../common/rules");
-let {...} = import("./normal");
+let {...} = import("../../../common/rules");
+let {...} = import("../normal");
 
 let idString(s: String): String {
   return s;
 }
 
-export class GenJS {
+export class GenJavascriptRec {
   private buf: ListBuilder<String>;
   private name: MapBuilder<String, Normal>;
   private hashes: Int;
@@ -20,7 +20,7 @@ export class GenJS {
     buf = new ListBuilder<String>();
     name = byName;
     hashes = 0;
-    sets = new ListBuilder<String>();
+    sets = new ListBuilder<NormalCharSet>();
     depth = 0;
     syms = new MapBuilder<String, Int>();
     done = new DenseBitVector(0);

@@ -19,6 +19,7 @@ export class Parser {
   public comp(): String {
     match (mode) {
       "floyd-rec-js" -> return grammar.floydRecGenJS("__start__");
+      "floyd-dfa-js" -> return grammar.floydDFAGenJS("__start__");
       else -> return bubble();
     }
   }

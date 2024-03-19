@@ -86,7 +86,7 @@ export class NFA {
 
   public constructor(startRules: Rules, baseRules: Rules): Void {
     rules = baseRules;
-    table = new ListBuilder<String>();
+    table = new ListBuilder<State>();
     good = alloc(null);
     bad = alloc(null);
     root = alloc(null);

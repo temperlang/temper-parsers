@@ -17,6 +17,8 @@ export interface Normal {
   public id: Int;
 
   public check(cache: Cache): Result;
+
+  public toString(): String;
 }
 
 export class NormalOr extends Normal {
@@ -37,6 +39,10 @@ export class NormalOr extends Normal {
       return r2;
     }
   }
+
+  public toString(): String {
+    return "#${id.toString()} = #${v1.id.toString()} | #${v2.id.toString()}";
+  }
 }
 
 export class NormalAnd extends Normal {
@@ -54,6 +60,10 @@ export class NormalAnd extends Normal {
     var r2 = v2.check(cache);
     return new ResultCons(r2.stop, r1, r2);
   }
+
+  public toString(): String {
+    return "#${id.toString()} = #${v1.id.toString()} & #${v2.id.toString()}";
+  }
 }
 
 export class NormalEmpty extends Normal {
@@ -61,6 +71,10 @@ export class NormalEmpty extends Normal {
 
   public check(cache: Cache): Result {
     return new ResultEmpty(cache.head);
+  }
+
+  public toString(): String {
+    return "#${id.toString()} = <empty>";
   }
 }
 
@@ -73,6 +87,10 @@ export class NormalNode extends Normal {
     var got = next.check(cache);
     return new ResultNode(got.stop, name, got);
   }
+
+  public toString(): String {
+    return "alias #${id.toString()} = #${id.toString()}";
+  }
 }
 
 export class NormalIgnore extends Normal {
@@ -82,6 +100,10 @@ export class NormalIgnore extends Normal {
   public check(cache: Cache): Result {
     var got = next.check(cache);
     return new ResultIgnore(got.stop);
+  }
+
+  public toString(): String {
+    return "alias #${id.toString()} = #${next.id.toString()}";
   }
 }
 
@@ -97,6 +119,10 @@ export class NormalToken extends Normal {
     } else {
       return new ResultToken(got.stop, start);
     }
+  }
+
+  public toString(): String {
+    return "alias #${id.toString()} = #${next.id.toString()}";
   }
 }
 
@@ -128,6 +154,10 @@ export class NormalCharSet extends Normal {
       return notChar;
     }
   }
+
+  public toString(): String {
+    return "#${id.toString()} = <char-set>";
+  }
 }
 
 var notChar = new ResultError(-1, "not-done");
@@ -148,6 +178,10 @@ export class NormalLink extends Normal {
     var got = cache.rules.getOr(name, noNormal).check(cache);
     cache.cache[hash] = got;
     return got;
+  }
+
+  public toString(): String {
+    return "#${id.toString()} = ${name}";
   }
 }
 

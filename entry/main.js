@@ -66,7 +66,12 @@ for (let i = 3; i < argv.length; i++) {
 //     }
 // };
 
-if (mode === 'floyd-rec-js') {
+const modes = [
+    'floyd-rec-js',
+    'floyd-dfa-js',
+];
+
+if (modes.indexOf(mode) !== -1) {
     parser.mode = mode;
     
     let res = parser.comp();
