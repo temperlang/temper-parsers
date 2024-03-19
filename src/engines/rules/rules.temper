@@ -35,7 +35,7 @@ export class RulesRec extends Engine {
     start = s;
     rules = r;
     nfa = n;
-    results = new MapBuilder<Int, Int>();
+    results = new MapBuilder<Int, Result>();
     numIds = rules.rules.length;
 
     noParse = new Error("NoParse");

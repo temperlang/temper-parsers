@@ -5,7 +5,8 @@ let {...} = import("../../regex/nfa");
 let {...} = import("../engine");
 let {...} = import("./result");
 let {...} = import("./normal");
-let {...} = import("./js");
+let {...} = import("./js/dfa");
+let {...} = import("./js/rec");
 
 export class FloydRec extends Engine {
   private start: String;
@@ -153,7 +154,11 @@ export class FloydRec extends Engine {
     return res.toTrees(cache.chars);
   }
 
-  public generateJavascript(): String {
-    return new GenJS(byName).start(start);
+  public generateJavascriptRec(): String {
+    return new GenJavascriptRec(byName).start(start);
+  }
+  
+  public generateJavascriptDFA(): String {
+    return new GenJavascriptDFA(byName).start(start);
   }
 }

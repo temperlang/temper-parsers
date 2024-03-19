@@ -256,7 +256,15 @@ export class Grammar {
       floydRecExists = true;
       floydRec = new FloydRec(start, build(), nfa());
     }
-    return floydRec.generateJavascript();
+    return floydRec.generateJavascriptRec();
+  }
+
+  public floydDFAGenJS(start: String): String {
+    if (!floydRecExists) {
+      floydRecExists = true;
+      floydRec = new FloydRec(start, build(), nfa());
+    }
+    return floydRec.generateJavascriptDFA();
   }
 
   public floydRec(start: String): Engine {
@@ -333,7 +341,8 @@ export class Grammar {
   }
 
   public seq(): Grammar {
-    parts.add(new ListBuilder<RulePart>());
+    var ls = new ListBuilder<RulePart>();
+    parts.add(ls);
     cons.add(rname);
     mLex.add(false);
     return this;

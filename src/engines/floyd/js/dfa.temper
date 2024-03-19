@@ -1,0 +1,74 @@
+
+let {...} = import("../../../common/rules");
+let {...} = import("../normal");
+
+let idString(s: String): String {
+  return s;
+}
+
+export class GenJavascriptDFA {
+  private name: MapBuilder<String, Normal>;
+  private depth: Int;
+  private buf: ListBuilder<String>;
+  private syms: MapBuilder<String, Int>;
+  private done: DenseBitVector;
+  private todo: ListBuilder<Normal>;
+
+  public constructor(byName: MapBuilder<String, Normal>) {
+    name = byName;
+    depth = 0;
+    buf = new ListBuilder<String>();
+    syms = new MapBuilder<String, Int>();
+    done = new DenseBitVector(0);
+    todo = new ListBuilder<Normal>();
+  }
+
+  private gensym(name: String): String {
+    var got = syms.getOr(name, 0);
+    var ret = "${name}_${got.toString()}";
+    syms[name] = got + 1;
+    return ret;
+  }
+
+  public push(s: String): Void {
+    if (s == "") {
+      buf.add(s);
+    } else {
+      for (var i = 0; i < depth; i++) {
+        s = "  ${s}";
+      }
+      buf.add(s);
+    }
+  }
+
+  public then(n: Normal): Void {
+    if (!done[n.id]) {
+      done[n.id] = true;
+      todo.add(n);
+    }
+  }
+
+  public add(n: Normal): Void {
+    push("");
+    push("f${n.id.toString()}() {");
+    syms = new MapBuilder<String, Int>();
+    depth += 1;
+    
+    depth -= 1;
+    push("}");
+  }
+
+  public start(s: String): String {
+    push("import {ResultNode, ResultToken, ResultIgnore, ResultEmpty, ResultCons, ResultError} from 'temper-parsers/src/engines/floyd/result.js';");
+    push("export class Parser {");
+    depth += 1;
+    then(name[s]);
+    for (var i = 0; i < todo.length; i++) {
+      add(todo[i]);
+    }
+    depth -= 1;
+    push("}");
+
+    return buf.join("\n", idString);
+  }
+}
