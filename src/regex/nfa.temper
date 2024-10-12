@@ -128,7 +128,7 @@ export class NFA {
         if (part.isString) {
           var split = part.data.split("");
           for (var i = 0; i < split.length; i++) {
-            cur.char(split[i].codePoints.read(), next);
+            cur.char(split[i][String.begin], next);
           }
         } else {
           var found = rules.byName.getOr(part.data, []);
@@ -172,7 +172,7 @@ export class NFA {
       return n;
     } else if (state != bad && n < chrs.length) {
       var best = -1;
-      var nexts = state.chars.getOr(chrs.getOr(n, "").codePoints.read(), noNext).all;
+      var nexts = state.chars.getOr(chrs.getOr(n, "")[String.begin], noNext).all;
       var nextsLen = nexts.length;
       for (var i = 0; i < nextsLen; i++) {
         var next = nexts.getOr(i, -1);

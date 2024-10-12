@@ -4,5 +4,5 @@ export let idString(s: String): String {
 }
 
 export let ord(c: String): Int {
-  return c.codePoints.read();
+  return c[String.begin];
 }

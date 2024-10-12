@@ -162,7 +162,7 @@ export class GenJavascriptRec {
   }
 
   public emit(n: Normal): String {
-    match (n) {
+    when (n) {
       is NormalOr -> return emitOr(n);
       is NormalAnd -> return emitAnd(n);
       is NormalCharSet -> return emitCharSet(n);
@@ -224,7 +224,7 @@ export class GenJavascriptRec {
         push("let ${c} = [];");
         var split = n.str.split("");
         for (var j = 0; j < split.length; j++) {
-          push("${c}[String.fromCharCode(${split[j].codePoints.read().toString()})] = true;")
+          push("${c}[String.fromCharCode(${split[j][String.begin].toString()})] = true;")
         }
       }
     }

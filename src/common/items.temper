@@ -36,7 +36,7 @@ export class ItemPartSet extends ItemPart {
     vals = args;
     bits = new DenseBitVector(128);
     for (var i = 0; i < args.length; i++) {
-      bits[args[i].codePoints.read()] = true;
+      bits[args[i][String.begin]] = true;
     }
   }
   
@@ -63,9 +63,9 @@ var noEnts: List<ItemPart> = [];
 
 let walk(trees: Listed<Tree>): String {
   return trees.join("", fn(t: Tree): String {
-    match (t) {
-      is Token -> return t.as<Token>().value;
-      is Node -> return walk(t.as<Node>().items);
+    when (t) {
+      is Token -> return t.value;
+      is Node -> return walk(t.items);
       else -> bubble();
     }
   });

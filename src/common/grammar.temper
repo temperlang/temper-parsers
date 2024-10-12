@@ -37,7 +37,7 @@ export let toGrammar(whole: Tree): Grammar {
     if (node.type == "AliasDefine") {
       var alias = node.items[2].as<Token>().value;
       base = node.items[0].as<Token>().value;
-      term = base.codePoints.read() <= "Z".codePoints.read();
+      term = base[String.begin] <= "Z"[String.begin];
       var item = translate(node.items[1]);
       if (term) {
         console.log("unhandled: alias of token ${node.toString()}");
@@ -51,7 +51,7 @@ export let toGrammar(whole: Tree): Grammar {
       var name = node.items[0].as<Node>();
       base = name.items[0].as<Token>().value;
       var expand = name.type == "ExpandName";
-      term = base.codePoints.read() <= "Z".codePoints.read();
+      term = base[String.begin] <= "Z"[String.begin];
       var item = translate(node.items[1]);
       if (term) {
         grammar.name(base).seq().rule(item).token().mayLex();
@@ -184,8 +184,8 @@ export let toGrammar(whole: Tree): Grammar {
   }
 
   let translate(tree: Tree): String {
-    match (tree) {
-      is Node -> return translateNode(tree.as<Node>());
+    when (tree) {
+      is Node -> return translateNode(tree);
       else -> do {
         console.log("unhandled: ${tree.toString()}");
         bubble();

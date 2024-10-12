@@ -1,5 +1,5 @@
 
-var v1: Int;
-var v2: List<Int>; 
-var v3: fn(Int): Int;
-var v4: Map<String, fn(): Void>;
+var v1: Int = 0;
+var v2: List<Int> = [1, 2, 3]; 
+var v3: fn(Int): Int = fn(x: Int): Int { x * 2 };
+var v4: Map<String, fn(): Void> = new Map([]);

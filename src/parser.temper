@@ -17,7 +17,7 @@ export class Parser {
   }
 
   public comp(): String {
-    match (mode) {
+    when (mode) {
       "floyd-rec-js" -> return grammar.floydRecGenJS("__start__");
       "floyd-dfa-js" -> return grammar.floydDFAGenJS("__start__");
       else -> return bubble();
@@ -25,7 +25,7 @@ export class Parser {
   }
   
   public parse(str: String): Tree | Bubble {
-    match (mode) {
+    when (mode) {
       "floyd-rec" -> return grammar.floydRec("__start__").trees(str)[0];
       "rules-rec" -> return grammar.rulesRec("__start__").trees(str)[0];
       "char-earley" -> return grammar.charEarley("__start__").trees(str)[0];

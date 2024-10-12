@@ -78,33 +78,31 @@ export let format(base: Tree): String {
     var len = 0;
     for (var i = 0; i < depth; i++) {
       builder.add(tab);
-      len += tab.codePoints.length;
+      len += tab.countBetween(String.begin, tab.end);
     }
     return len;
   }
 
   let more(tree: Tree): Void {
-    match (tree) {
+    when (tree) {
       is Node -> do {
-        var node = tree.as<Node>();
-        var str = node.toString();
+        var str = tree.toString();
         var n = line();
-        if (str.codePoints.length + n < 80 && depth != 0) {
+        if (str.countBetween(String.begin, str.end) + n < 80 && depth != 0) {
           builder.add(str);
         } else {
-          builder.add("(${node.type}");
+          builder.add("(${tree.type}");
           depth += 1;
-          for (var i = 0; i < node.items.length; i++) {
-            more(node.items[i]);
+          for (var i = 0; i < tree.items.length; i++) {
+            more(tree.items[i]);
           }
           depth -= 1;
           builder.add(")");
         }
       };
       is Token -> do {
-        var token = tree.as<Token>();
         line();
-        builder.add("\"${token.value}\"");
+        builder.add("\"${tree.value}\"");
       };
     }
   }
